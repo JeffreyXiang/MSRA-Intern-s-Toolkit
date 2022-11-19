@@ -6,7 +6,10 @@ param(
    [string]$Num,
 
    [Parameter(Mandatory=$True,HelpMessage="Your Alias in type DOMAIN.alias")]
-   [string]$Alias
+   [string]$Alias,
+
+   [Parameter(Mandatory=$True,HelpMessage="Port to open tunnel")]
+   [string]$Port
 )
 
 $ALIAS = $Alias
@@ -23,21 +26,21 @@ $SANDBOXNUM=$Num
 
 if (!(get-command az 2>$null)) {
    write-host "azure-cli not installed  -- https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt"
-   Return $False
+   Exit 1
 }
 if (((az extension list|ConvertFrom-Json).name|sls "ssh"|measure-object).count -lt 1) {
    write-host "az ssh extension not installed.  Please run the following to install."
    write-host "az extension add --name ssh"
-   Return $False
+   Exit 2
 }
 if (!(Test-Path -Path $KEYPATH)) {
-  Write-Host "Keypath not found $KEYPATH"
-  Return $False
+   Write-Host "Keypath not found $KEYPATH"
+   Exit 3
 }
 
 if ($Tunnel) {
    $BASTIONCOMMAND = "tunnel"
-   $BASTIONPARAMS = "--resource-port 22 --port 2222"
+   $BASTIONPARAMS = "--resource-port 22 --port $Port"
 } else {
    $BASTIONCOMMAND = "ssh"
    $BASTIONPARAMS = "--auth-type ssh-key --username $ALIAS --ssh-key $KEYPATH"

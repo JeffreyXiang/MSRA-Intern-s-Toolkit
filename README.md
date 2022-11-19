@@ -1,6 +1,6 @@
-# msra-intern-s-toolkit README
+# MSRA Intern's Toolkit
 
-This is the README for your extension "msra-intern-s-toolkit". After writing up a brief description, we recommend including the following sections.
+extension "msra-intern-s-toolkit". After writing up a brief description, we recommend including the following sections.
 
 ## Features
 

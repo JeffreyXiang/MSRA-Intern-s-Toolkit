@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GCR Tunnel</title>
+    <style>
+        div.item {
+            position: relative;
+            height: 40px;
+            margin: 5px 0px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgb(128, 128, 128, 0.1);
+        }
+
+        div.info {
+            height: 100%;
+            margin-left: 10px;
+            margin-right: 5px;
+            overflow: hidden;
+            flex: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        div.info_sandboxID {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        div.info_port {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: gray;
+            font-size: 10px;
+        }
+
+        div.state {
+            height: 100%;
+            margin-left: 5px;
+            margin-right: 10px;
+            color: gray;
+            font-size: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        div.action {
+            height: 25px;
+            width: 50px;
+            background: rgb(0, 122, 204);
+            color: white;
+            font-size: 13px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        div.progress {
+            position: absolute;
+            z-index: -1;
+            top: 0px;
+            left: 0px;
+            height: 100%;
+            width: 0px;
+            background: rgb(0, 255, 0, 0.25);
+            transition-duration: 0.25s;
+            transition-property: width;
+            transition-timing-function: ease;
+        }
+
+        div#edit {
+            margin: 0px -5px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        div.edit_action {
+            height: 30px;
+            margin: 5px;
+            background: rgb(0, 122, 204);
+            color: white;
+            font-size: 13px;
+            flex: 1 0 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        const vscode = acquireVsCodeApi();
+
+        window.addEventListener('message', event => {
+            const command = event.data.command;
+            const params = event.data.params;
+            const state = ['closed', 'bastion_opening', 'ssh_opening', 'opened'];
+            switch (command) {
+                case 'setContent':
+                    let html = '';
+                    for (let i = 0; i < params.length; i++){ 
+                        let progress = state.indexOf(params[i].state);
+                        html += `
+                            <div class="item">
+                                <div class="progress" style="width:${progress >= 0 ? progress * 100 / 3 : 0}%"></div>
+                                <div class="info">
+                                    <div class="info_sandboxID">
+                                        GCRAZGDL${params[i].sandboxID}
+                                    </div>
+                                    <div class="info_port">
+                                        127.0.0.1:${params[i].sshPort}
+                                    </div>
+                                </div>
+                                <div class="state">` +
+                                    (params[i].state == 'closed' ? `<div class="action", onclick="send_message({command: 'open', idx: ${i}})">Open</div>` :
+                                    params[i].state == 'opened' ? `<div class="action", onclick="send_message({command: 'close', idx: ${i}})">Close</div>` :
+                                    `${params[i].state}`) +
+                                `</div>
+                            </div>
+                        `;
+                    }
+                    document.getElementById("list").innerHTML = html;
+                    break;
+                case 'update':
+                    document.getElementsByClassName('item')[params.idx].getElementsByClassName('state')[0].innerHTML = (
+                        params.tunnel.state == 'closed' ? `<div class="action", onclick="send_message({command: 'open', idx: ${params.idx}})">Open</div>` :
+                        params.tunnel.state == 'opened' ? `<div class="action", onclick="send_message({command: 'close', idx: ${params.idx}})">Close</div>` :
+                        `${params.tunnel.state}`
+                    );
+                    let progress = state.indexOf(params.tunnel.state);
+                    if (progress >= 0) {
+                        document.getElementsByClassName('item')[params.idx].getElementsByClassName('progress')[0].style.width = `${100 * progress / 3}%`
+                    }
+                    break;
+            }
+        })
+
+        function send_message(data) {
+            vscode.postMessage(data);
+        }
+
+        window.onload = () => {
+            send_message({command: 'getContent'});
+        }
+    </script>
+</head>
+<body>
+    <div id='list'>
+        <!-- <div class="item">
+            <div class="progress"></div>
+            <div class="info">
+                <div class="info_sandboxID">
+                    SandboxID
+                </div>
+                <div class="info_port">
+                    Port
+                </div>
+            </div>
+            <div class="state">
+                State
+                <div class="action">Action</div>
+            </div>
+        </div> -->
+    </div>
+    <div id="edit">
+        <div class="edit_action", onclick="send_message({command: 'add'})">Add</div>
+        <div class="edit_action", onclick="send_message({command: 'delete'})">Delete</div>
+    </div>
+</body>
+</html>
