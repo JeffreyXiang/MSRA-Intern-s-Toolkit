@@ -15,7 +15,7 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
         webviewView.webview.options = { enableScripts: true };
         webviewView.webview.html = this.html;
         webviewView.webview.onDidReceiveMessage((message: any) => {
-            console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Receive ' + JSON.stringify(message));
+            // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Receive ' + JSON.stringify(message));
             switch (message.command) {
                 case 'getContent':
                     gcr.refreshUI();
@@ -34,14 +34,14 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
                     break;
             }
         });
-        console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Webview resolved');
+        // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Webview resolved');
     }
 
     public setContent(tunnels: gcr.Tunnel[]) {
         if (this.view) {
             let message = {command: 'setContent', params: tunnels};
             this.view.webview.postMessage(message);
-            console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Send ' + JSON.stringify(message));
+            // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Send ' + JSON.stringify(message));
         }
     }
 
@@ -49,7 +49,7 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
         if (this.view) {
             let message = {command: 'update', params: {idx: idx, tunnel: tunnel}};
             this.view.webview.postMessage(message);
-            console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Send ' + JSON.stringify(message));
+            // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Send ' + JSON.stringify(message));
         }
     }
 }

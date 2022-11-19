@@ -26,16 +26,16 @@ $SANDBOXNUM=$Num
 
 if (!(get-command az 2>$null)) {
    write-host "azure-cli not installed  -- https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt"
-   Exit 1
+   Exit 2
 }
 if (((az extension list|ConvertFrom-Json).name|sls "ssh"|measure-object).count -lt 1) {
    write-host "az ssh extension not installed.  Please run the following to install."
    write-host "az extension add --name ssh"
-   Exit 2
+   Exit 3
 }
 if (!(Test-Path -Path $KEYPATH)) {
    Write-Host "Keypath not found $KEYPATH"
-   Exit 3
+   Exit 4
 }
 
 if ($Tunnel) {

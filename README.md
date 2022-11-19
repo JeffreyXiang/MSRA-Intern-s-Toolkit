@@ -1,6 +1,8 @@
 # MSRA Intern's Toolkit
 
-extension "msra-intern-s-toolkit". After writing up a brief description, we recommend including the following sections.
+MSRA Intern's Toolkit is a VS Code extension for research interns in MSRA(Microsoft Research Asia) to simplify some of the troublesome but frequently used process including submitting jobs to clusters, opening tunnels to GCR sandboxes, etc.
+
+This extension provide you a intuitive and interactive way to deal with these annoying process. Just get rid of those scripts that nobody can remember and embrace this convinient user interface.
 
 ## Features
 
@@ -13,58 +15,69 @@ For example if there is an image subfolder under your extension project workspac
 > Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
 
 ## Requirements
+* First of all, when using GCR. you must have a Linux SSH key generated and submitted to the GCR Pubkey Manager. For instructions in completing this setup, please reference [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
+* Install Azure CLI with version higher than 2.32. Latest: [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli).
+* * You can check your Azure CLI version with: `az version --output table`.
+* Install the Azure CLI ssh extension: `az extension add --name ssh`.
+* Make sure Powershell and OpenSSH is installed. Learn how to install them from [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) and [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui).
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## Usage
 
-## Extension Settings
+### GCR Tunnel
+* Login to Azure with `az login`.
+* Press **Add** button to setup a new tunnel.
+* Input sandbox ID and port as guided. Note that:
+* * Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.
+* * Local port of the tunnel, should be 5 digits start with 2.
+* After the tunnel is successfully added, press **Open** button and wait for the tunnel to open.
+* The tunnel will be opened on `127.0.0.1:yourport` (shown as the second row of tunnel info, below sandbox name). You can directly connect to it using `ssh -p yourport DOMAIN.youralias@127.0.0.1`. But I recommend using VS Code Remote-SSH for productivity. Edit your ssh config and add the following:
+```
+Host tunnel
+    HostName 127.0.0.1
+    Port yourport
+    User DOMAIN.youralias
+    StrictHostKeyChecking=No
+    UserKnownHostsFile=\\.\NUL
+```
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## Troubleshooting
 
-For example:
+### GCR Tunnel
 
-This extension contributes the following settings:
+**Powershell spawning failed.**
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
+* Probably caused by the absense of powershell. This extention uses `pwsh.exe` and is tested with powershell7. See [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
 
-## Known Issues
+**Opening timeout.**
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+* Maybe caused by network issue. Check your VPN if you are remote.
+
+**Powershell script forbidden.**
+
+* Caused by powershell `SecurityError`.
+* This means the script running is forbidden due to strict security setting.
+* Run `Set-ExecutionPolicy RemoteSigned` with admin powershell and select yes to solve this.
+
+**Keypath not found.**
+
+* Means `.ssh\id_ed25519` file in the user dir is missing. Have you generated and submitted your ssh key? Following [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
+
+**SSH tunnel failed.**
+
+* A possible reason is the bad owner or permissions on `.ssh/config` file. Make sure this file is owned by your alias account and no others are permitted to access. Inherit should be disabled. 
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
-
 ### 1.0.0
 
-Initial release of ...
+Initial release 
 
-### 1.0.1
+## For more information
 
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+* [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli)
+* [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
+* [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui)
+* [GCR Bastion - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/6627/GCR-Bastion)
+* [SSH Key Management - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management)
 
 **Enjoy!**

@@ -135,28 +135,51 @@ export async function openTunnel(i?: number) {
     if (tunnels[i].state == 'closed' && i != undefined) {
         tunnels[i].state = 'bastion_opening';
         update(i);
-        // console.log(`msra_intern_s_toolkit.openTunnel: Exec powershell.exe ${globalPath('script/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${alias} -port ${tunnels[i].port}`)
-        let proc = cp.spawn('powershell.exe', [globalPath('script/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', alias, '-port', `${tunnels[i].port}`]);
+        console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${alias} -port ${tunnels[i].port}`)
+        let proc = cp.spawn('pwsh.exe', [globalPath('script/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', alias, '-port', `${tunnels[i].port}`]);
+        let timeout = setTimeout(((i) => () => {
+            proc.kill();
+            vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Opening timeout.`);
+            tunnels[i].state = 'bastion_opening_failed';
+            update(i);
+        })(i), 12000);
+        proc.on('error', ((i) => (err) => {
+            proc.kill();
+            clearTimeout(timeout);
+            vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Powershell spawning failed.`);
+            tunnels[i].state = 'bastion_opening_failed';
+            update(i);
+        })(i))
         proc.stdout.on('data', (data) => {
             // console.log(`msra_intern_s_toolkit.openTunnel: ${data}`);
         });
-        proc.stderr.on('data', (data) => {
-            // console.error(`msra_intern_s_toolkit.openTunnel: ${data}`);
-            if (String(data).indexOf('Tunnel is ready') != undefined) {
+        proc.stderr.on('data', ((i) => (data) => {
+            let sdata = String(data);
+            // console.error(`msra_intern_s_toolkit.openTunnel: ${sdata}`);
+            if (sdata.indexOf('SecurityError') != -1) {
                 proc.kill();
+                clearTimeout(timeout);
+                vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Powershell script forbidden.`);
+                tunnels[i].state = 'bastion_opening_failed';
+                update(i);
             }
-        });
+            else if (sdata.indexOf('Tunnel is ready') != -1) {
+                proc.kill();
+                clearTimeout(timeout);
+            }
+        })(i));
         proc.on('exit', ((i) => (code) => {
+            clearTimeout(timeout);
             // console.log(`msra_intern_s_toolkit.openTunnel: Process exited with ${code}`);
-            if (code != undefined) {
+            if (code) {
                 switch (code) {
-                    case 1:
-                        vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Azure-cli not installed.`);
-                        break;
                     case 2:
-                        vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. az ssh extension not installed.`);
+                        vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Azure CLI not installed.`);
                         break;
                     case 3:
+                        vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. az ssh extension not installed.`);
+                        break;
+                    case 4:
                         vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Keypath not found.`);
                         break;
                 }
