@@ -106,7 +106,7 @@
         window.addEventListener('message', event => {
             const command = event.data.command;
             const params = event.data.params;
-            const state = ['closed', 'bastion_opening', 'ssh_opening', 'opened'];
+            const state = ['closed', 'preopen_check', 'bastion_opening', 'ssh_opening', 'opened'];
             switch (command) {
                 case 'setContent':
                     let html = '';
@@ -114,7 +114,7 @@
                         let progress = state.indexOf(params[i].state);
                         html += `
                             <div class="item">
-                                <div class="progress" style="width:${progress >= 0 ? progress * 100 / 3 : 0}%"></div>
+                                <div class="progress" style="width:${progress >= 0 ? progress * 100 / 4 : 0}%"></div>
                                 <div class="info">
                                     <div class="info_sandboxID">
                                         GCRAZGDL${params[i].sandboxID}
@@ -141,7 +141,7 @@
                     );
                     let progress = state.indexOf(params.tunnel.state);
                     if (progress >= 0) {
-                        document.getElementsByClassName('item')[params.idx].getElementsByClassName('progress')[0].style.width = `${100 * progress / 3}%`
+                        document.getElementsByClassName('item')[params.idx].getElementsByClassName('progress')[0].style.width = `${100 * progress / 4}%`
                     }
                     break;
             }
