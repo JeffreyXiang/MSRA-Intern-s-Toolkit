@@ -23,6 +23,10 @@
 				"title": "MSRA Intern's Toolkit: Hello World"
 			},
 			{
+				"command": "msra_intern_s_toolkit.azureAccount",
+				"title": "MSRA Intern's Toolkit: Azure Account"
+			},
+			{
 				"command": "msra_intern_s_toolkit.addGCRTunnel",
 				"title": "MSRA Intern's Toolkit: Add GCR Tunnel"
 			},
@@ -51,16 +55,38 @@
 		"views": {
 			"msra_intern_s_toolkit": [
 				{
+					"id": "msra_intern_s_toolkit_view_welcome",
+					"name": "MSRA Intern's Toolkit",
+					"when": "!msra_intern_s_toolkit.isLoggedIn"
+				},
+				{
 					"type": "webview",
 					"id": "msra_intern_s_toolkit_view_submitJobs",
-					"name": "Submit Jobs"
+					"name": "Submit Jobs",
+					"when": "msra_intern_s_toolkit.isLoggedIn"
 				},
 				{
 					"type": "webview",
 					"id": "msra_intern_s_toolkit_view_GCRTunnel",
-					"name": "GCR Tunnel"
+					"name": "GCR Tunnel",
+					"when": "msra_intern_s_toolkit.isLoggedIn"
 				}
 			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "msra_intern_s_toolkit_view_welcome",
+				"contents": "Login to continue.\nSee the status bar."
+			}
+		],
+		"icons": {
+			"msra-intern-s-toolkit": {
+				"description": "MSRA Intern's Toolkit icon",
+				"default":{
+					"fontPath": "icon.woff",
+					"fontCharacter": "\\E900"
+				}
+			}
 		}
 	},
 	"scripts": {

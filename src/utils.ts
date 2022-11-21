@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import * as fs from 'fs'
 import * as path from 'path'
 import * as cp from 'child_process'
@@ -23,6 +24,14 @@ export function saveFile(file_path: string, data: any) {
 
 export function exists(path: string) {
     return fs.existsSync(globalPath(path))
+}
+
+export function showErrorMessageWithHelp(text: string){
+    vscode.window.showErrorMessage(text, 'Helps' ,'OK').then((choice) => {
+        if (choice == 'Helps'){
+            vscode.env.openExternal(vscode.Uri.parse('https://github.com/JeffreyXiang/MSRA-Intern-s-Toolkit#troubleshooting'))
+        }
+    })
 }
 
 export function pidIsRunning(pid: number) {

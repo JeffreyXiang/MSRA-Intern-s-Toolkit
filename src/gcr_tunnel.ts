@@ -2,10 +2,9 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process'
 import * as process from 'process'
 import {vscodeContext} from './extension'
-import {globalPath, pidIsRunning, findNetProcess, getFile, saveFile} from './utils'
+import * as az from './azure';
+import {globalPath, pidIsRunning, findNetProcess, getFile, saveFile, showErrorMessageWithHelp} from './utils'
 import {GCRTunnelView} from './ui/gcr_tunnel'
-
-var alias = 'FAREAST.v-jxiang'
 
 /* Bastion Tunnel */
 
@@ -138,21 +137,21 @@ export async function openTunnel(i?: number) {
     }
 }
 
-export async function openBastionTunnel(i: number) {
+function openBastionTunnel(i: number) {
     tunnels[i].state = 'bastion_opening';
     update(i);
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${alias} -port ${tunnels[i].port}`)
-    let proc = cp.spawn('pwsh.exe', [globalPath('script/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', alias, '-port', `${tunnels[i].port}`]);
+    console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${az.alias} -port ${tunnels[i].port}`)
+    let proc = cp.spawn('pwsh.exe', [globalPath('script/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', az.alias, '-port', `${tunnels[i].port}`]);
     let timeout = setTimeout(((i) => () => {
         proc.kill();
-        vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Opening timeout.`);
+        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Opening timeout.`);
         tunnels[i].state = 'bastion_opening_failed';
         update(i);
     })(i), 12000);
     proc.on('error', ((i) => (err) => {
         proc.kill();
         clearTimeout(timeout);
-        vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Powershell spawning failed.`);
+        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Powershell spawning failed.`);
         tunnels[i].state = 'bastion_opening_failed';
         update(i);
     })(i))
@@ -165,7 +164,7 @@ export async function openBastionTunnel(i: number) {
         if (sdata.indexOf('SecurityError') != -1) {
             proc.kill();
             clearTimeout(timeout);
-            vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Powershell script forbidden.`);
+            showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Powershell script forbidden.`);
             tunnels[i].state = 'bastion_opening_failed';
             update(i);
         }
@@ -180,13 +179,13 @@ export async function openBastionTunnel(i: number) {
         if (code) {
             switch (code) {
                 case 2:
-                    vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Azure CLI not installed.`);
+                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Azure CLI not installed.`);
                     break;
                 case 3:
-                    vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. az ssh extension not installed.`);
+                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. az ssh extension not installed.`);
                     break;
                 case 4:
-                    vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. Keypath not found.`);
+                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Keypath not found.`);
                     break;
             }
             tunnels[i].state = 'bastion_opening_failed';
@@ -198,12 +197,12 @@ export async function openBastionTunnel(i: number) {
 function openSSHTunnel(i: number) {
     tunnels[i].state = 'ssh_opening';
     update(i);
-    // console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${alias}@127.0.0.1 -p ${tunnels[i].port}`)
-    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${alias}@127.0.0.1`, '-p', `${tunnels[i].port}`], {detached: true, stdio: 'ignore'});
+    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${az.alias}@127.0.0.1 -p ${tunnels[i].port}`)
+    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${az.alias}@127.0.0.1`, '-p', `${tunnels[i].port}`], {detached: true, stdio: 'ignore'});
     proc.unref();
     proc.on('exit', (code) => {
         if (tunnels[i].state == 'ssh_opening') {
-            vscode.window.showErrorMessage(`Failed to open GCR tunnel${i}. SSH tunnel failed.`);
+            showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. SSH tunnel failed.`);
             // console.log(`msra_intern_s_toolkit.openTunnel: Process exited with ${code}`);
             tunnels[i].state = 'ssh_opening_failed'
             process.kill(tunnels[i].procID!);
@@ -230,7 +229,7 @@ export async function closeTunnel(i?: number) {
     }
 }
 
-export function polling(){
+function polling(){
     for (let i = 0; i < tunnels.length; i++) {
         // Separatel deal with 'closed' and 'opened' state for better performance.
         if (tunnels[i].state == 'closed') { }
@@ -369,6 +368,11 @@ function update(i: number) {
 }
 
 export function init() {
+    vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.addGCRTunnel', () => {addTunnel()}));
+	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.deleteGCRTunnel', () => {deleteTunnel()}));
+	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.openGCRTunnel', () => {openTunnel()}));
+	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.closeGCRTunnel', () => {closeTunnel()}));
+
     tunnels = JSON.parse(getFile('./userdata/gcr_tunnel.json')).map((v: TunnelSetting) => new Tunnel(v));
 
     ui = new GCRTunnelView();
@@ -377,6 +381,10 @@ export function init() {
         ui,
         {webviewOptions: {retainContextWhenHidden: true}}
     ));
+
+    setInterval(() => {
+		polling();
+	}, 1000);
 }
 
 export function refreshUI() {

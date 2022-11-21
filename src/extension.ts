@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import * as gcr from './gcr_tunnel';
+import * as az from './azure';
 
 export var vscodeContext:vscode.ExtensionContext;
 
@@ -14,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "msra_intern_s_toolkit" is now active!');
 
-	vscodeContext = context
+	vscodeContext = context;
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -25,16 +26,8 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello World from MSRA Intern\'s Toolkit!');
 	}));
 
-	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.addGCRTunnel', () => {gcr.addTunnel()}));
-	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.deleteGCRTunnel', () => {gcr.deleteTunnel()}));
-	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.openGCRTunnel', () => {gcr.openTunnel()}));
-	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.closeGCRTunnel', () => {gcr.closeTunnel()}));
-	
+	az.init();
 	gcr.init();
-
-	setInterval(() => {
-		gcr.polling();
-	}, 1000);
 }
 
 // this method is called when your extension is deactivated
