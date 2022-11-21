@@ -383,7 +383,7 @@ export function init() {
     ));
 
     setInterval(() => {
-		polling();
+		if (az.isLoggedIn) polling();
 	}, 1000);
 }
 

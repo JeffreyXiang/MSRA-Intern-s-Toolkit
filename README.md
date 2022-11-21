@@ -6,13 +6,15 @@ This extension provide you a intuitive and interactive way to deal with these an
 
 ## Features
 
+To be continued.
+<!-- 
 Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
 
 For example if there is an image subfolder under your extension project workspace:
 
 \!\[feature X\]\(images/feature-x.png\)
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow. -->
 
 ## Requirements
 * First of all, when using GCR. you must have a Linux SSH key generated and submitted to the GCR Pubkey Manager. For instructions in completing this setup, please reference [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
@@ -23,8 +25,9 @@ For example if there is an image subfolder under your extension project workspac
 
 ## Usage
 
+First of all, as the welcome says, login to Azure with the **Click to login** button in the status bar. This will open a page in your default web browser. Follow the guidance to login. After the page returns, just wait a second before the extension get your account information. Then you can get access to the tools.
+
 ### GCR Tunnel
-* Login to Azure with `az login`.
 * Press **Add** button to setup a new tunnel.
 * Input sandbox ID and port as guided. Note that:
 * * Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.
@@ -41,6 +44,10 @@ Host tunnel
 ```
 
 ## Troubleshooting
+
+**Azure CLI not installed.**
+
+* Install Azure CLI with version higher than 2.32. See [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli).
 
 ### GCR Tunnel
 
