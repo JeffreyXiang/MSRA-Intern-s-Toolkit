@@ -6,15 +6,7 @@ This extension provide you a intuitive and interactive way to deal with these an
 
 ## Features
 
-To be continued.
-<!-- 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
 
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow. -->
 
 ## Requirements
 * First of all, when using GCR. you must have a Linux SSH key generated and submitted to the GCR Pubkey Manager. For instructions in completing this setup, please reference [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
@@ -95,7 +87,12 @@ Host tunnel
 
 ### 1.0.0
 
-Initial release 
+First release.
+
+Module:
+* Azure Account
+* Submit Jobs
+* GCR Tunnel
 
 ## For more information
 
