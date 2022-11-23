@@ -5,7 +5,7 @@
 	"icon": "color-icon.png",
 	"version": "1.0.0",
 	"author": "Jianfeng Xiang",
-	"publisher": "Jianfeng Xiang",
+	"publisher": "JianfengXiang",
 	"repository": {"url": "https://github.com/JeffreyXiang/MSRA-Intern-s-Toolkit"},
 	"engines": {
 		"vscode": "^1.32.0"
