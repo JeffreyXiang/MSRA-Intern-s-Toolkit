@@ -128,5 +128,8 @@
 		"webpack": "^5.52.1",
 		"webpack-cli": "^4.8.0",
 		"@vscode/test-electron": "^1.6.2"
+	},
+	"__metadata": {
+		"publisherDisplayName": "Jianfeng Xiang"
 	}
 }
