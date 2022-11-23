@@ -4,8 +4,12 @@
 	"description": "",
 	"icon": "color-icon.png",
 	"version": "1.0.0",
-	"author": "Jianfeng Xiang",
-	"publisher": "JianfengXiang",
+	"publisher": "jianfeng-xiang",
+	"author": {
+		"name": "Jianfeng Xiang",
+		"email": "v-jxiang@microsoft.com",
+		"url": "https://jeffreyxiang.github.io"
+	},
 	"repository": {"url": "https://github.com/JeffreyXiang/MSRA-Intern-s-Toolkit"},
 	"engines": {
 		"vscode": "^1.32.0"
