@@ -53,7 +53,7 @@ export async function addTunnel() {
             vscode.window.showErrorMessage('Invalid sandbox ID.');
             return;
         } 
-        if (!Array.from(res).every((v) => ('0123456789'.indexOf(v) != -1))) {
+        if (!Array.from(res).every((v) => ('0123456789'.includes(v)))) {
             vscode.window.showErrorMessage('Invalid sandbox ID.');
             return;
         }
@@ -76,7 +76,7 @@ export async function addTunnel() {
                 vscode.window.showErrorMessage('Invalid port.');
                 return;
             } 
-            if (!Array.from(res).every((v, i) => (i == 0 ? v == '2' : '0123456789'.indexOf(v) != -1))) {
+            if (!Array.from(res).every((v, i) => (i == 0 ? v == '2' : '0123456789'.includes(v)))) {
                 vscode.window.showErrorMessage('Invalid port.');
                 return;
             }
@@ -140,14 +140,14 @@ export async function openTunnel(i?: number) {
 function openBastionTunnel(i: number) {
     tunnels[i].state = 'bastion_opening';
     update(i);
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${az.alias} -port ${tunnels[i].port}`)
-    let proc = cp.spawn('pwsh.exe', [globalPath('script/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', az.alias, '-port', `${tunnels[i].port}`]);
+    console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${az.alias} -port ${tunnels[i].port}`)
+    let proc = cp.spawn('pwsh.exe', [globalPath('script/gcr_tunnel/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', az.alias, '-port', `${tunnels[i].port}`]);
     let timeout = setTimeout(((i) => () => {
         proc.kill();
-        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Opening timeout.`);
+        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Command timeout.`);
         tunnels[i].state = 'bastion_opening_failed';
         update(i);
-    })(i), 12000);
+    })(i), 16000);
     proc.on('error', ((i) => (err) => {
         proc.kill();
         clearTimeout(timeout);
@@ -161,14 +161,14 @@ function openBastionTunnel(i: number) {
     proc.stderr.on('data', ((i) => (data) => {
         let sdata = String(data);
         // console.error(`msra_intern_s_toolkit.openTunnel: ${sdata}`);
-        if (sdata.indexOf('SecurityError') != -1) {
+        if (sdata.includes('SecurityError')) {
             proc.kill();
             clearTimeout(timeout);
             showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Powershell script forbidden.`);
             tunnels[i].state = 'bastion_opening_failed';
             update(i);
         }
-        else if (sdata.indexOf('Tunnel is ready') != -1) {
+        else if (sdata.includes('Tunnel is ready')) {
             proc.kill();
             clearTimeout(timeout);
         }

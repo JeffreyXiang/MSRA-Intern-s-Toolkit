@@ -42,7 +42,7 @@ function checkAccount() {
 
 function login() {
     vscode.window.withProgress(
-        {location: vscode.ProgressLocation.Notification, cancellable: true}, 
+        {location: vscode.ProgressLocation.Notification, cancellable: false}, 
         async (progress) => {
             progress.report({message: "Waiting for authentication..."});
             return new Promise<void> (resolve => {

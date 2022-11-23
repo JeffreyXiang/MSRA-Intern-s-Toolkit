@@ -1,0 +1,6 @@
+name: msra-intern-s-toolkit
+dependencies:
+  - python=3.8
+  - pip:
+    - azureml-sdk
+    - azureml-contrib-aisc

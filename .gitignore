@@ -2,4 +2,6 @@ out
 dist
 node_modules
 .vscode-test/
+.vscode/
 *.vsix
+userdata/jobs_history

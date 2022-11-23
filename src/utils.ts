@@ -26,6 +26,12 @@ export function exists(path: string) {
     return fs.existsSync(globalPath(path))
 }
 
+export function listFiles(dir_path: string) {
+    let dir = globalPath(dir_path)
+    let data = fs.readdirSync(dir, { encoding: 'utf8' })
+    return data 
+}
+
 export function showErrorMessageWithHelp(text: string){
     vscode.window.showErrorMessage(text, 'Helps' ,'OK').then((choice) => {
         if (choice == 'Helps'){

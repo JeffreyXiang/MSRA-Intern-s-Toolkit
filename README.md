@@ -27,6 +27,12 @@ For example if there is an image subfolder under your extension project workspac
 
 First of all, as the welcome says, login to Azure with the **Click to login** button in the status bar. This will open a page in your default web browser. Follow the guidance to login. After the page returns, just wait a second before the extension get your account information. Then you can get access to the tools.
 
+### Submit Jobs
+
+* When running for the first time, there will be a message for you to setup conda environment. This is because the extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. Press **Yes** and wait until finished before continue. You can also manual setup with `conda create -n msra-intern-s-toolkit python=3.8 && conda activate msra-intern-s-toolkit && pip install azureml-contrib-aisc && pip install azureml-sdk`.
+* Fill the form and press **Submit**. If everything is ok, you shall get a success message with job id after a while.
+* If you want to load the config of submitted jobs. Press **Load** and select it in submission history.
+
 ### GCR Tunnel
 * Press **Add** button to setup a new tunnel.
 * Input sandbox ID and port as guided. Note that:
@@ -49,15 +55,27 @@ Host tunnel
 
 * Install Azure CLI with version higher than 2.32. See [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli).
 
+**Command timeout.**
+
+* Maybe caused by network issue. Check your VPN if you are remote.
+
+### Submit Jobs
+
+**Conda spawning failed.**
+
+* Have you installed a conda environment?
+
+**Conda environment not found.**
+
+* This extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. This can be addressed with any of the following two actions:
+* * Click **Yes** when a message advices you to setup conda env (at start or after the error message).
+* * Run the following command: `conda create -n msra-intern-s-toolkit python=3.8 && conda activate msra-intern-s-toolkit && pip install azureml-contrib-aisc && pip install azureml-sdk`.
+
 ### GCR Tunnel
 
 **Powershell spawning failed.**
 
 * Probably caused by the absense of powershell. This extention uses `pwsh.exe` and is tested with powershell7. See [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
-
-**Opening timeout.**
-
-* Maybe caused by network issue. Check your VPN if you are remote.
 
 **Powershell script forbidden.**
 

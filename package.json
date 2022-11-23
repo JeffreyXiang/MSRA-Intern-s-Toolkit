@@ -13,14 +13,14 @@
 		"Other"
 	],
 	"activationEvents": [
-		"*"
+		"onCommand:msra_intern_s_toolkit.start"
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
 		"commands": [
 			{
-				"command": "msra_intern_s_toolkit.helloWorld",
-				"title": "MSRA Intern's Toolkit: Hello World"
+				"command": "msra_intern_s_toolkit.start",
+				"title": "MSRA Intern's Toolkit: Start"
 			},
 			{
 				"command": "msra_intern_s_toolkit.azureAccount",
@@ -55,27 +55,36 @@
 		"views": {
 			"msra_intern_s_toolkit": [
 				{
-					"id": "msra_intern_s_toolkit_view_welcome",
-					"name": "MSRA Intern's Toolkit",
-					"when": "!msra_intern_s_toolkit.isLoggedIn"
+					"id": "msra_intern_s_toolkit_view_start",
+					"name": "",
+					"when": "!msra_intern_s_toolkit.isStarted"
+				},
+				{
+					"id": "msra_intern_s_toolkit_view_login",
+					"name": "",
+					"when": "msra_intern_s_toolkit.isStarted && !msra_intern_s_toolkit.isLoggedIn"
 				},
 				{
 					"type": "webview",
 					"id": "msra_intern_s_toolkit_view_submitJobs",
 					"name": "Submit Jobs",
-					"when": "msra_intern_s_toolkit.isLoggedIn"
+					"when": "msra_intern_s_toolkit.isStarted && msra_intern_s_toolkit.isLoggedIn"
 				},
 				{
 					"type": "webview",
 					"id": "msra_intern_s_toolkit_view_GCRTunnel",
 					"name": "GCR Tunnel",
-					"when": "msra_intern_s_toolkit.isLoggedIn"
+					"when": "msra_intern_s_toolkit.isStarted && msra_intern_s_toolkit.isLoggedIn"
 				}
 			]
 		},
 		"viewsWelcome": [
 			{
-				"view": "msra_intern_s_toolkit_view_welcome",
+				"view": "msra_intern_s_toolkit_view_start",
+				"contents": "Press to start.\n[Start](command:msra_intern_s_toolkit.start)"
+			},
+			{
+				"view": "msra_intern_s_toolkit_view_login",
 				"contents": "Login to continue.\nSee the status bar."
 			}
 		],

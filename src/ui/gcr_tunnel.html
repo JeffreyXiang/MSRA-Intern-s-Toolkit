@@ -57,13 +57,17 @@
         div.action {
             height: 25px;
             width: 50px;
-            background: rgb(0, 122, 204);
-            color: white;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
             font-size: 13px;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
+        }
+
+        div.action:hover {
+            background: var(--vscode-button-hoverBackground);
         }
 
         div.progress {
@@ -90,14 +94,18 @@
         div.edit_action {
             height: 30px;
             margin: 5px;
-            background: rgb(0, 122, 204);
-            color: white;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
             font-size: 13px;
             flex: 1 0 50px;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
+        }
+
+        div.edit_action:hover {
+            background: var(--vscode-button-hoverBackground);
         }
     </style>
     <script>

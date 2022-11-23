@@ -1,8 +1,9 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as gcr from './gcr_tunnel';
 import * as az from './azure';
+import * as job from './submit_jobs';
+import * as gcr from './gcr_tunnel';
 
 export var vscodeContext:vscode.ExtensionContext;
 
@@ -13,20 +14,16 @@ export function activate(context: vscode.ExtensionContext) {
 	
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "msra_intern_s_toolkit" is now active!');
+	console.log('Congratulations, your extension "msra-intern-s-toolkit" is now active!');
 
 	vscodeContext = context;
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from MSRA Intern\'s Toolkit!');
+	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.start', () => {
+		vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isStarted', true);
 	}));
 
 	az.init();
+	job.init();
 	gcr.init();
 }
 
