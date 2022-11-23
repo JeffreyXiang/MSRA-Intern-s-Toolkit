@@ -7,7 +7,7 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
     private html: string;
 
     constructor() {
-        this.html = getFile('./src/ui/submit_jobs.html');
+        this.html = getFile('html/submit_jobs.html');
     }
 
     public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken) {

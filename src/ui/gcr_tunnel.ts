@@ -7,7 +7,7 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
     private html: string;
 
     constructor() {
-        this.html = getFile('./src/ui/gcr_tunnel.html');
+        this.html = getFile('html/gcr_tunnel.html');
     }
 
     public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken) {
