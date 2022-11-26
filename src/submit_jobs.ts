@@ -38,12 +38,14 @@ export var ui: SubmitJobsView;
 export function submit() {
     vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false}, 
-        async (progress) => {
+        ((cfg) => (async (progress) => {
             progress.report({message: "Submitting the job..."});
             return new Promise<void> (resolve => {
                 checkCondaEnv(true).then((passed) => {
                     if (passed) {
-                        let proc = cp.spawn('conda', ['activate', 'msra-intern-s-toolkit', '&&', 'python', globalPath('script/submit_jobs/submit.py'), '--config', globalPath('userdata/submit_jobs.json')], {shell: true});
+                        let cfgPath = `./userdata/submit_jobs_${new Date().getTime()}.json`
+                        saveFile(cfgPath, JSON.stringify(config));
+                        let proc = cp.spawn('conda', ['activate', 'msra-intern-s-toolkit', '&&', 'python', globalPath('script/submit_jobs/submit.py'), '--config', globalPath(cfgPath)], {shell: true});
                         let timeout = setTimeout(() => {
                             proc.kill();
                             showErrorMessageWithHelp(`Failed to submit the job. Command timeout.`);
@@ -57,7 +59,7 @@ export function submit() {
                                 clearTimeout(timeout);
                                 let id = sdata.trim().slice(4, -1).split(',')[1].trim().slice(4);
                                 vscode.window.showInformationMessage(`Job submitted. Id: ${id}`);
-                                saveFile(`./userdata/jobs_history/${id}.json`, JSON.stringify(config));
+                                saveFile(`./userdata/jobs_history/${id}.json`, JSON.stringify(cfg));
                                 resolve();
                             }
                         });
@@ -75,7 +77,7 @@ export function submit() {
                     else resolve();
                 });
             });
-        }
+        }))(config)
     );
 }
 
@@ -101,6 +103,7 @@ export async function loadHistory() {
     });
     if (res == undefined) return;
     config = JSON.parse(getFile(`./userdata/jobs_history/${res}.json`));
+    saveFile('./userdata/submit_jobs.json', JSON.stringify(config));
     refreshUI();
 }
 
