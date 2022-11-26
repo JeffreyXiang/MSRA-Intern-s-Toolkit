@@ -44,7 +44,7 @@ export function submit() {
                 checkCondaEnv(true).then((passed) => {
                     if (passed) {
                         let cfgPath = `./userdata/submit_jobs_${new Date().getTime()}.json`
-                        saveFile(cfgPath, JSON.stringify(config));
+                        saveFile(cfgPath, cfg);
                         let proc = cp.spawn('conda', ['activate', 'msra-intern-s-toolkit', '&&', 'python', globalPath('script/submit_jobs/submit.py'), '--config', globalPath(cfgPath)], {shell: true});
                         let timeout = setTimeout(() => {
                             proc.kill();
@@ -59,7 +59,7 @@ export function submit() {
                                 clearTimeout(timeout);
                                 let id = sdata.trim().slice(4, -1).split(',')[1].trim().slice(4);
                                 vscode.window.showInformationMessage(`Job submitted. Id: ${id}`);
-                                saveFile(`./userdata/jobs_history/${id}.json`, JSON.stringify(cfg));
+                                saveFile(`./userdata/jobs_history/${id}.json`, cfg);
                                 resolve();
                             }
                         });
@@ -77,7 +77,7 @@ export function submit() {
                     else resolve();
                 });
             });
-        }))(config)
+        }))(JSON.stringify(config))
     );
 }
 
