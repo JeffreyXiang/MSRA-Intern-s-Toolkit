@@ -6,7 +6,7 @@ This extension provide you a intuitive and interactive way to deal with these an
 
 ## Features
 
-
+![feature](image/feature.jpg)
 
 ## Requirements
 * First of all, when using GCR. you must have a Linux SSH key generated and submitted to the GCR Pubkey Manager. For instructions in completing this setup, please reference [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
