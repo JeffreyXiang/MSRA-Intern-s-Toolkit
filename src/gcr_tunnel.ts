@@ -197,8 +197,8 @@ function openBastionTunnel(i: number) {
 function openSSHTunnel(i: number) {
     tunnels[i].state = 'ssh_opening';
     update(i);
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${az.alias}@127.0.0.1 -p ${tunnels[i].port}`)
-    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${az.alias}@127.0.0.1`, '-p', `${tunnels[i].port}`], {detached: true, stdio: 'ignore'});
+    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${az.alias}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no`)
+    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${az.alias}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no'], {detached: true, stdio: 'ignore'});
     proc.unref();
     proc.on('exit', (code) => {
         if (tunnels[i].state == 'ssh_opening') {
@@ -263,8 +263,10 @@ function polling(){
                 findNetProcess({
                     proto: 'TCP',
                     localAddr: '127.0.0.1',
-                    foreignAddr: '127.0.0.1',
-                    foreignPort: tunnels[i].port,
+                    localPort: tunnels[i].sshPort,
+                    foreignAddr: '0.0.0.0',
+                    foreignPort: 0,
+                    state: 'LISTENING',
                     imageName: 'ssh.exe'
                 })
             ]).then((pids) => {
