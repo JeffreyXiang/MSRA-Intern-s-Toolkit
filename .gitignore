@@ -6,3 +6,5 @@ node_modules
 *.vsix
 
 userdata/jobs_history
+userdata/saved_jobs
+userdata/submit_jobs_*

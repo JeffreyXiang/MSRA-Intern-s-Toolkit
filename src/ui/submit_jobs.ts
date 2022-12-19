@@ -24,7 +24,10 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
                     job.updateConfig(message.params.group, message.params.label, message.params.value);
                     break;
                 case 'load':
-                    job.loadHistory();
+                    job.load();
+                    break;
+                case 'save':
+                    job.save();
                     break;
                 case 'submit':
                     job.submit()

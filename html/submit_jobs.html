@@ -90,6 +90,7 @@
                 case 'setContent':
                     document.getElementById('virtual_cluster').value = params.cluster.virtual_cluster;
                     document.getElementById('instance_type').value   = params.cluster.instance_type;
+                    document.getElementById('node_count').value      = params.cluster.node_count.toString();
                     document.getElementById('sla_tier').value        = params.cluster.sla_tier;
                     document.getElementById('datastore_name').value  = params.storage.datastore_name;
                     document.getElementById('account_name').value    = params.storage.account_name;
@@ -124,6 +125,9 @@
                     objs[i].style.display = value ? null : 'none';
                 }
             }
+            else if (label == 'node_count') {
+                value = parseInt(document.getElementById(label).value);
+            }
             else {
                 value = document.getElementById(label).value;
             }
@@ -136,9 +140,10 @@
     <div class="item"><div class="label">Virtual Cluster:</div><select id="virtual_cluster" onchange="config_changed('cluster', 'virtual_cluster')">
             <option value="msroctovc" msrpilot>msroctovc</option>
             <option value="msrresrchvc">msrresrchvc</option>
-            <option value="msrpilot">msrpilot</option>
+            <option value="itplabrr1cl1">itplabrr1cl1</option>
     </select></div>
     <div class="item"><div class="label">Instance Type:</div><input id="instance_type" type="text" onchange="config_changed('cluster', 'instance_type')"></div>
+    <div class="item"><div class="label">Node Count:</div><input id="node_count" type="number" min="1" max="4" step="1" onchange="config_changed('cluster', 'node_count')"></div>
     <div class="item"><div class="label">SLA Tier:</div><select id="sla_tier" onchange="config_changed('cluster', 'sla_tier')">
         <option value="Premium" msrpilot>Premium</option>
         <option value="Standard">Standard</option>
@@ -161,6 +166,9 @@
     <div class="item"><div class="label">Script:</div><textarea id="script" type="text" onchange="config_changed('experiment', 'script')"></textarea></div>
     <div id="buttons">
         <div class="button", onclick="send_message({command: 'load'})">Load</div>
+        <div class="button", onclick="send_message({command: 'save'})">Save</div>
+    </div>
+    <div id="buttons">
         <div class="button", onclick="send_message({command: 'submit'})">Submit</div>
     </div>
 </body>

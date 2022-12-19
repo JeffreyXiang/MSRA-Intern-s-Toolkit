@@ -2,15 +2,15 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process'
 import {vscodeContext} from './extension'
 import {SubmitJobsView} from './ui/submit_jobs'
-import { getFile, globalPath, listFiles, saveFile, showErrorMessageWithHelp } from './utils';
-import { resolve } from 'path';
+import { getFile, globalPath, listFiles, exists, saveFile, showErrorMessageWithHelp } from './utils';
 
 export class JobConfig {
     cluster: {
         virtual_cluster: string;
         instance_type: string;
+        node_count: number;
         sla_tier: string;
-    } = {virtual_cluster: '', instance_type: '', sla_tier: ''};
+    } = {virtual_cluster: 'msroctovc', instance_type: '', node_count: 1, sla_tier: 'Basic'};
     storage: {
         datastore_name: string;
         container_name: string;
@@ -28,7 +28,16 @@ export class JobConfig {
         sas_token: string;
         data_dir: string;
         script: string;
-    } = {name: '', workdir: '', copy_data: false, sas_token: '', data_dir: '', script: ''};
+    } = {name: '', workdir: '', copy_data: true, sas_token: '', data_dir: '', script: ''};
+
+    constructor(init?: Partial<JobConfig>) {
+        if (init) {
+            if (init.cluster) Object.assign(this.cluster, init.cluster);
+            if (init.storage) Object.assign(this.storage, init.storage);
+            if (init.environment) Object.assign(this.environment, init.environment);
+            if (init.experiment) Object.assign(this.experiment, init.experiment);
+        }
+    }
 }
 
 var config: JobConfig;
@@ -86,7 +95,16 @@ export function updateConfig(group: string, label: string, value: any) {
     saveFile('./userdata/submit_jobs.json', JSON.stringify(config));
 }
 
-export async function loadHistory() {
+function loadJson(path: string) {
+    if (exists(path)) {
+        config = new JobConfig(JSON.parse(getFile(path)));
+    }
+    else {
+        config = new JobConfig();
+    }
+}
+
+async function loadHistory() {
     let res = await vscode.window.showQuickPick(
         listFiles('userdata/jobs_history')
             .map((v) => v.slice(0, -5))
@@ -102,10 +120,57 @@ export async function loadHistory() {
         ignoreFocusOut: true
     });
     if (res == undefined) return;
-    config = JSON.parse(getFile(`./userdata/jobs_history/${res}.json`));
+    loadJson(`./userdata/jobs_history/${res}.json`);
     saveFile('./userdata/submit_jobs.json', JSON.stringify(config));
     refreshUI();
 }
+
+async function loadSaved() {
+    let res = await vscode.window.showQuickPick(
+        listFiles('userdata/saved_jobs')
+            .map((v) => v.slice(0, -5)), {
+        title: 'Select job config',
+        canPickMany: false,
+        ignoreFocusOut: true
+    });
+    if (res == undefined) return;
+    loadJson(`./userdata/saved_jobs/${res}.json`);
+    refreshUI();
+}
+
+export async function load() {
+    let res = await vscode.window.showQuickPick(
+        ['History', 'Saved'], {
+        title: 'Select job config',
+        canPickMany: false,
+        ignoreFocusOut: true
+    });
+    if (res == undefined) return;
+    if (res == 'History') loadHistory();
+    else if (res == 'Saved') loadSaved();
+}
+
+export async function save() {
+    let res = await vscode.window.showInputBox({
+        title: 'Save job config',
+        prompt: 'Enter a name for the config',
+        ignoreFocusOut: true
+    });
+    if (res == undefined) return;
+    // Check if the file exists
+    if (exists(`./userdata/saved_jobs/${res}.json`)) {
+        let overwrite = await vscode.window.showQuickPick(
+            ['Yes', 'No'], {
+            title: `Config ${res} already exists. Overwrite?`,
+            canPickMany: false,
+            ignoreFocusOut: true
+        });
+        if (overwrite != 'Yes') return;
+    }
+    saveFile(`./userdata/saved_jobs/${res}.json`, JSON.stringify(config));
+}
+
+
 
 function showSetupCondaEnvMessage() {
     vscode.window.showInformationMessage('Conda environment not found. Setup now?', 'Yes', 'No').then((choice) => {
@@ -160,7 +225,7 @@ async function setupCondaEnv() {
 export function init() {
     checkCondaEnv();
     
-    config = JSON.parse(getFile('./userdata/submit_jobs.json'));
+    loadJson('./userdata/submit_jobs.json');
 
     ui = new SubmitJobsView();
     vscodeContext.subscriptions.push(vscode.window.registerWebviewViewProvider(

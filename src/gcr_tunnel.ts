@@ -3,7 +3,7 @@ import * as cp from 'child_process'
 import * as process from 'process'
 import {vscodeContext} from './extension'
 import * as az from './azure';
-import {globalPath, pidIsRunning, findNetProcess, getFile, saveFile, showErrorMessageWithHelp} from './utils'
+import {globalPath, pidIsRunning, findNetProcess, getFile, saveFile, exists, showErrorMessageWithHelp} from './utils'
 import {GCRTunnelView} from './ui/gcr_tunnel'
 
 /* Bastion Tunnel */
@@ -375,7 +375,9 @@ export function init() {
 	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.openGCRTunnel', () => {openTunnel()}));
 	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.closeGCRTunnel', () => {closeTunnel()}));
 
-    tunnels = JSON.parse(getFile('./userdata/gcr_tunnel.json')).map((v: TunnelSetting) => new Tunnel(v));
+    tunnels = exists('./userdata/gcr_tunnel.json') ?
+        JSON.parse(getFile('./userdata/gcr_tunnel.json')).map((v: TunnelSetting) => new Tunnel(v)) :
+        [];
 
     ui = new GCRTunnelView();
     vscodeContext.subscriptions.push(vscode.window.registerWebviewViewProvider(

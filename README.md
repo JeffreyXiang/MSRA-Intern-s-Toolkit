@@ -21,9 +21,53 @@ First of all, as the welcome says, login to Azure with the **Click to login** bu
 
 ### Submit Jobs
 
-* When running for the first time, there will be a message for you to setup conda environment. This is because the extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. Press **Yes** and wait until finished before continue. You can also manual setup with `conda create -n msra-intern-s-toolkit python=3.8 && conda activate msra-intern-s-toolkit && pip install azureml-contrib-aisc && pip install azureml-sdk`.
+* When running for the first time, there will be a message for you to setup conda environment. This is because the extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. Press **Yes** and wait until finished before continue. You can also manual setup with:
+```
+conda create -n msra-intern-s-toolkit python=3.8
+conda activate msra-intern-s-toolkit
+pip install azureml-sdk
+pip install azureml-contrib-aisc
+pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml_contrib_k8s
+```
 * Fill the form and press **Submit**. If everything is ok, you shall get a success message with job id after a while.
 * If you want to load the config of submitted jobs. Press **Load** and select it in submission history.
+
+#### About the submission config:
+
+**Cluster**
+
+Cluster zone sets which cluster to submit the job, how many nodes and gpus per nodes to use and priority. Currently there are two types of clusters being used in MSRA: **ITP** and **Singularity**.
+
+ITP cluster contains only **itplabrr1cl1**. It has up to 8 V100 32GB GPUs per node. Number of GPUs to use is set by **Instance Type**. and **SLA Tier** is ignored.
+
+Singularity clusters contain **msroctovc** and **msrresrchvc**. They have different types and numbers of GPUs on the nodes. GPU type and numbers are set by **Instance Type**, which is a name string alike `ND40_v2g1`. **SLA Tier** determines the priority of your job. The higher the tier, the less likely your job getting interrupted. All information about Singularity cluster settings can be found on the website mentioned below.
+
+This extension also support multi-node training. When **Node Count** is set larger than 1, the submitter will launch one process per node with environs `NODE_RANK`, `MASTER_ADDR` and `MASTER_PORT`. You can use these values to launch distributed training inside your scipt.
+
+For more information about ITP and Singularity, referring to [AML Kubernetes (aka AML K8s)(aka ITP) Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/3438/AML-Kubernetes-(aka-AML-K8s)(aka-ITP)-Overview) and [Singularity Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4712/Singularity-Overview).
+
+**Storage**
+
+Storage zone sets the working directory where your script will run. It must be somewhere on the Azure Storage. So, don't forget to upload the code to your blob container before submitting the job. Since this is troublesome, I recommend to work using GCR sandbox with your blob countainer mounted as a local disk. For more information, see [Linux Sandbox Getting Started - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/531/Linux-Sandbox-Getting-Started).
+
+* **Datastore:** Arbitrary name.
+* **Account:** Storage account name in Azure Storage.
+* **Acount Key:** Key of your account (second row in properties).
+* **Countainer:** Name of your blob container.
+
+**Environment**
+
+* **Docker Image:** Image name of the environment. Now only curated images are supported. See [Curated environments - Azure Machine Learning | Microsoft Learn](https://learn.microsoft.com/en-us/azure/machine-learning/resource-curated-environments) for ITP and [Singularity container images - Singularity](https://singularitydocs.azurewebsites.net/docs/container_images/) for Singularity.
+* **Setup Script:** Script to be run before the experiment. This script will be run under the working directory. So, usage of `requirements.txt` is recommended.
+
+**Experiment**
+
+* **Name:** Arbitrary name for your experiment.
+* **Work Dir:** Working directory related to the root of yout blob container (container name is excluded).
+* **Copy Data:** Whether to copy the dataset from blob container to the node before running the experiment. Note that although the specified working directory on the blob container will be mounted to the node, directly reading it with file system may be extremely slow. So, I recommend to do data transfer beforehand using `azcopy` which is specially designed for high speed massive data transfer from Azure Storage.
+* **SAS Token:** Shows if **Copy Data** is checked. The SAS token of your blob container. Right click the container to generate one.
+* **Data Dir:** Shows if **Copy Data** is checked. Data directory related to the root of yout blob container (container name is excluded).
+* **Scipt:** Script to run the experiment.
 
 ### GCR Tunnel
 * Press **Add** button to setup a new tunnel.
@@ -61,7 +105,14 @@ Host tunnel
 
 * This extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. This can be addressed with any of the following two actions:
 * * Click **Yes** when a message advices you to setup conda env (at start or after the error message).
-* * Run the following command: `conda create -n msra-intern-s-toolkit python=3.8 && conda activate msra-intern-s-toolkit && pip install azureml-contrib-aisc && pip install azureml-sdk`.
+* * Run the following command: 
+```
+conda create -n msra-intern-s-toolkit python=3.8
+conda activate msra-intern-s-toolkit
+pip install azureml-sdk
+pip install azureml-contrib-aisc
+pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml_contrib_k8s
+```
 
 ### GCR Tunnel
 
@@ -83,17 +134,6 @@ Host tunnel
 
 * A possible reason is the bad owner or permissions on `.ssh/config` file. Make sure this file is owned by your alias account and no others are permitted to access. Inherit should be disabled. 
 
-## Release Notes
-
-### 1.0.0
-
-First release.
-
-Module:
-* Azure Account
-* Submit Jobs
-* GCR Tunnel
-
 ## For more information
 
 * [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli)
@@ -101,5 +141,8 @@ Module:
 * [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui)
 * [GCR Bastion - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/6627/GCR-Bastion)
 * [SSH Key Management - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management)
+* [AML Kubernetes (aka AML K8s)(aka ITP) Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/3438/AML-Kubernetes-(aka-AML-K8s)(aka-ITP)-Overview)
+* [Singularity Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4712/Singularity-Overview)
+* [Linux Sandbox Getting Started - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/531/Linux-Sandbox-Getting-Started)
 
 **Enjoy!**
