@@ -147,7 +147,7 @@ function openBastionTunnel(i: number) {
         showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Command timeout.`);
         tunnels[i].state = 'bastion_opening_failed';
         update(i);
-    })(i), 16000);
+    })(i), 60000);
     proc.on('error', ((i) => (err) => {
         proc.kill();
         clearTimeout(timeout);
