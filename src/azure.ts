@@ -5,19 +5,30 @@ import {vscodeContext} from './extension'
 import {showErrorMessageWithHelp} from './utils'
 
 var azureStatusBar: vscode.StatusBarItem;
+export var domain: string;
 export var alias: string;
 export var isLoggedIn: boolean | undefined = undefined;
 
 function checkAccount() {
     cp.exec('az account show', {env: process.env}, (error, stdout, stderr) => {
         if (stdout) {
-            let username = JSON.parse(stdout).user.name;
-            alias = `FAREAST.${username.split('@')[0]}`;
-            isLoggedIn = true;
-            vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
-            azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
-            vscode.window.showInformationMessage(`Succesfully login as: ${username}`);
-            return;
+            vscode.window.showQuickPick(['REDMOND', 'FAREAST'], { title: 'Select your domain' }).then((selectedItem) => {
+                if (selectedItem) {
+                    domain = selectedItem;
+                    let username = JSON.parse(stdout).user.name;
+                    alias = username.split('@')[0];
+                    isLoggedIn = true;
+                    vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
+                    azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
+                    vscode.window.showInformationMessage(`Succesfully login as: ${username}`);
+                    return;
+                }
+                else {
+                    isLoggedIn = false;
+                    azureStatusBar.text = '$(msra-intern-s-toolkit) Click to login';
+                    return;
+                }
+            });
         }
         if (error) {
             console.error(`msra_intern_s_toolkit.checkAccount: error - ${error.message}`);
@@ -41,42 +52,47 @@ function checkAccount() {
 }
 
 function login() {
-    vscode.window.withProgress(
-        {location: vscode.ProgressLocation.Notification, cancellable: false}, 
-        async (progress) => {
-            progress.report({message: "Waiting for authentication..."});
-            return new Promise<void> (resolve => {
-                cp.exec('az login', {env: process.env}, (error, stdout, stderr) => {
-                    if (stdout) {
-                        let username = JSON.parse(stdout)[0].user.name;
-                        alias = `FAREAST.${username.split('@')[0]}`;
-                        isLoggedIn = true;
-                        vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
-                        azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
-                        vscode.window.showInformationMessage(`Succesfully login as: ${username}`);
-                        return;
-                    }
-                    if (error) {
-                        console.error(`msra_intern_s_toolkit.login: error - ${error.message}`);
-                        if (error.message.toString().includes('re-authenticate')) {
-                            vscode.window.showErrorMessage('Authentication Failed.');
-                            login();
-                            return;
-                        }
-                        else{
-                            showErrorMessageWithHelp('Azure CLI not installed.');
-                            return;
-                        }
-                        
-                    }
-                    if (stderr) {
-                        console.error(`msra_intern_s_toolkit.login: stderr - ${stderr}`);
-                        return;
-                    }
-                }).on('exit', code => resolve());
-            });			
+    vscode.window.showQuickPick(['REDMOND', 'FAREAST'], { title: 'Select your domain' }).then((selectedItem) => {
+        if (selectedItem) {
+            domain = selectedItem;
+            vscode.window.withProgress(
+                {location: vscode.ProgressLocation.Notification, cancellable: false}, 
+                async (progress) => {
+                    progress.report({message: "Waiting for authentication..."});
+                    return new Promise<void> (resolve => {
+                        cp.exec('az login', {env: process.env}, (error, stdout, stderr) => {
+                            if (stdout) {
+                                let username = JSON.parse(stdout)[0].user.name;
+                                alias = username.split('@')[0];
+                                isLoggedIn = true;
+                                vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
+                                azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
+                                vscode.window.showInformationMessage(`Succesfully login as: ${username}`);
+                                return;
+                            }
+                            if (error) {
+                                console.error(`msra_intern_s_toolkit.login: error - ${error.message}`);
+                                if (error.message.toString().includes('re-authenticate')) {
+                                    vscode.window.showErrorMessage('Authentication Failed.');
+                                    login();
+                                    return;
+                                }
+                                else{
+                                    showErrorMessageWithHelp('Azure CLI not installed.');
+                                    return;
+                                }
+                                
+                            }
+                            if (stderr) {
+                                console.error(`msra_intern_s_toolkit.login: stderr - ${stderr}`);
+                                return;
+                            }
+                        }).on('exit', code => resolve());
+                    });			
+                }
+            );
         }
-    );
+    });
 }
 
 function logout() {
