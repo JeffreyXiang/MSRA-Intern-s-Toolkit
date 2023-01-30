@@ -199,8 +199,8 @@ function openBastionTunnel(i: number) {
 function openSSHTunnel(i: number) {
     tunnels[i].state = 'ssh_opening';
     update(i);
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no`)
-    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${az.domain}.${az.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no'], {detached: true, stdio: 'ignore'});
+    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=\\\\.\\NUL`)
+    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${az.domain}.${az.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=\\\\.\\NUL'], {detached: true, stdio: 'ignore'});
     proc.unref();
     proc.on('exit', (code) => {
         if (tunnels[i].state == 'ssh_opening') {

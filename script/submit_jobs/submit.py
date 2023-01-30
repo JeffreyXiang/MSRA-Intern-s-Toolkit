@@ -93,6 +93,7 @@ if not is_itp:
 else:
     src.run_config.cmk8scompute = K8sComputeConfiguration()
     src.run_config.cmk8scompute.configuration = {
+        'enable_ssh': True,
         'gpu_count': int(config['cluster']['instance_type']),
         'preemption_allowed': False,
     }

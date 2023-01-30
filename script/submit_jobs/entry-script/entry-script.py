@@ -11,29 +11,56 @@
 import os
 import argparse
 
+
+class ScriptBuilder:
+    def __init__(self):
+        self.cmds = ""
+
+    def _append(self, cmd):
+        if self.cmds != "":
+            self.cmds += " ; "
+        self.cmds += cmd
+
+    def print(self, info):
+        info = info.replace("\\", '\\\\').replace("\"", "\\\"").replace("$", "\\$")
+        self._append(f"echo \"[MSRA Intern's Toolkit] Job Launcher: {info}\"")
+
+    def add(self, cmd):
+        self.print(cmd)
+        self._append(cmd)
+
+    def run(self):
+        os.system(self.cmds)
+
+
 parser = argparse.ArgumentParser(description="Job Launcher of MSRA Intern's Toolkit")
-parser.add_argument('--workdir', default="", help="The working directory.")
-parser.add_argument('--data_src', default="", help="The source data directory on blob. azcopy src.")
-parser.add_argument('--setup', default="", help="The source data directory on blob. azcopy src.")
-parser.add_argument('--script', default="", help="The running script.")
+parser.add_argument("--workdir", default="", help="The working directory.")
+parser.add_argument("--data_src", default="", help="The source data directory on blob. azcopy src.")
+parser.add_argument("--setup", default="", help="The source data directory on blob. azcopy src.")
+parser.add_argument("--script", default="", help="The running script.")
 args, _ = parser.parse_known_args()
 
 os.chdir(args.workdir)
 
+script = ScriptBuilder()
+
 # copy data
 if args.data_src != "":
-    print("[MSRA Intern's Toolkit] Job Launcher: Copying data...")
-    os.system("wget -P /tmp \"https://azcopyvnext.azureedge.net/release20221108/azcopy_linux_amd64_10.16.2.tar.gz\"")
-    os.system("tar -zxvf /tmp/azcopy_linux_amd64_10.16.2.tar.gz -C /tmp")
-    os.system(f"/tmp/azcopy_linux_amd64_10.16.2/azcopy copy --recursive \"{args.data_src}\" /tmp")
-    print("[MSRA Intern's Toolkit] Job Launcher: Data copy done.")
+    script.print("Copying data...")
+    script.add(f"wget -P /tmp \"https://azcopyvnext.azureedge.net/release20221108/azcopy_linux_amd64_10.16.2.tar.gz\"")
+    script.add(f"tar -zxvf /tmp/azcopy_linux_amd64_10.16.2.tar.gz -C /tmp")
+    script.add(f"/tmp/azcopy_linux_amd64_10.16.2/azcopy copy --recursive \"{args.data_src}\" /tmp")
+    script.print("Data copy done.")
 
 # setup env
 if args.setup != "":
-    print("[MSRA Intern's Toolkit] Job Launcher: Setting up environment...")
-    os.system(args.setup)
-    print("[MSRA Intern's Toolkit] Job Launcher: Environment setup done.")
+    script.print("Setting up environment...")
+    script.add(args.setup)
+    script.print("Environment setup done.")
 
 # start training
-print("[MSRA Intern's Toolkit] Job Launcher: Start training.")
-os.system(f"WORKDIR={args.workdir} && {args.script}")
+script.print("Start training...")
+script.add(args.script)
+
+print(script.cmds)
+script.run()
