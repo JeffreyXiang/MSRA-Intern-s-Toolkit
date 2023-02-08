@@ -27,8 +27,9 @@ export class JobConfig {
         copy_data: boolean;
         sas_token: string;
         data_dir: string;
+        data_subdir: string;
         script: string;
-    } = {name: '', workdir: '', copy_data: true, sas_token: '', data_dir: '', script: ''};
+    } = {name: '', workdir: '', copy_data: true, sas_token: '', data_dir: '', data_subdir: '', script: ''};
 
     constructor(init?: Partial<JobConfig>) {
         if (init) {

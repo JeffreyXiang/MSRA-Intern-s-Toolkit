@@ -35,8 +35,10 @@ class ScriptBuilder:
 
 parser = argparse.ArgumentParser(description="Job Launcher of MSRA Intern's Toolkit")
 parser.add_argument("--workdir", default="", help="The working directory.")
-parser.add_argument("--data_src", default="", help="The source data directory on blob. azcopy src.")
-parser.add_argument("--setup", default="", help="The source data directory on blob. azcopy src.")
+parser.add_argument("--sas", default="", help="The SAS token.")
+parser.add_argument("--data_dir", default="", help="The data directory.")
+parser.add_argument("--data_subdir", default="", help="The data subdirectorys.")
+parser.add_argument("--setup", default="", help="The setup command.")
 parser.add_argument("--script", default="", help="The running script.")
 args, _ = parser.parse_known_args()
 
@@ -45,11 +47,13 @@ os.chdir(args.workdir)
 script = ScriptBuilder()
 
 # copy data
-if args.data_src != "":
+if args.sas != "" and args.data_dir != "":
     script.print("Copying data...")
     script.add(f"wget -P /tmp \"https://azcopyvnext.azureedge.net/release20221108/azcopy_linux_amd64_10.16.2.tar.gz\"")
     script.add(f"tar -zxvf /tmp/azcopy_linux_amd64_10.16.2.tar.gz -C /tmp")
-    script.add(f"/tmp/azcopy_linux_amd64_10.16.2/azcopy copy --recursive \"{args.data_src}\" /tmp")
+    data_src = args.sas[:args.sas.rfind('?')] + ('/' if args.data_dir[0] != '/' else '') + args.data_dir + args.sas[args.sas.rfind('?'):]
+    script.add(f"/tmp/azcopy_linux_amd64_10.16.2/azcopy copy --recursive \"{data_src}\" /tmp"
+        + ("" if args.data_subdir == "" else f" --include-path \"{args.data_subdir}\""))
     script.print("Data copy done.")
 
 # setup env

@@ -20,11 +20,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.start', () => {
 		vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isStarted', true);
+		az.init();
+		job.init();
+		gcr.init();
 	}));
-
-	az.init();
-	job.init();
-	gcr.init();
 }
 
 // this method is called when your extension is deactivated

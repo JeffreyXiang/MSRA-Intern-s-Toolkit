@@ -82,6 +82,14 @@
     <script>
         const vscode = acquireVsCodeApi();
 
+        function update_copy_data_hiddens() {
+            let value = document.getElementById('copy_data').checked;
+            let objs = document.getElementsByClassName('copy_data_');
+            for (let i = 0; i < objs.length; i++) {
+                objs[i].style.display = value ? null : 'none';
+            }
+        }
+
         window.addEventListener('message', event => {
             const command = event.data.command;
             const params = event.data.params;
@@ -103,7 +111,9 @@
                     document.getElementById('copy_data').checked     = params.experiment.copy_data;
                     document.getElementById('sas_token').value       = params.experiment.sas_token;
                     document.getElementById('data_dir').value        = params.experiment.data_dir;
+                    document.getElementById('data_subdir').value     = params.experiment.data_subdir;
                     document.getElementById('script').value          = params.experiment.script;
+                    update_copy_data_hiddens();
                     break;
             }
         })
@@ -120,10 +130,7 @@
             let value;
             if (label == 'copy_data') {
                 value = document.getElementById(label).checked;
-                let objs = document.getElementsByClassName('copy_data_');
-                for (let i = 0; i < objs.length; i++) {
-                    objs[i].style.display = value ? null : 'none';
-                }
+                update_copy_data_hiddens();
             }
             else if (label == 'node_count') {
                 value = parseInt(document.getElementById(label).value);
@@ -163,6 +170,7 @@
     <div class="item"><div class="label">Copy Data:</div><input id="copy_data" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'copy_data')"></div>
     <div class="item copy_data_"><div class="label">SAS Token:</div><input id="sas_token" type="text" onchange="config_changed('experiment', 'sas_token')"></div>
     <div class="item copy_data_"><div class="label">Data Dir:</div><input id="data_dir" type="text" onchange="config_changed('experiment', 'data_dir')"></div>
+    <div class="item copy_data_"><div class="label">Data Subdir:</div><input id="data_subdir" type="text" onchange="config_changed('experiment', 'data_subdir')"></div>
     <div class="item"><div class="label">Script:</div><textarea id="script" type="text" onchange="config_changed('experiment', 'script')"></textarea></div>
     <div id="buttons">
         <div class="button", onclick="send_message({command: 'load'})">Load</div>

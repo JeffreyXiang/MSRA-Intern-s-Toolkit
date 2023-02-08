@@ -54,10 +54,10 @@ arguments = [
 if config['environment']['setup_script'] != '':
     arguments += ["--setup", config['environment']['setup_script']]
 if config['experiment']['copy_data']:
-    sas = config['experiment']['sas_token']
-    data_dir = config['experiment']['data_dir']
-    arguments += ["--data_src",  
-        sas[:sas.rfind('?')] + ('/' if data_dir[0] != '/' else '') + data_dir + sas[sas.rfind('?'):]
+    arguments += [
+        "--sas", config['experiment']['sas_token'],
+        "--data_dir", config['experiment']['data_dir'],
+        "--data_subdir", config['experiment']['data_subdir'],
     ]
 
 src = ScriptRunConfig(
