@@ -1,4 +1,5 @@
 .vscode/**
+.msra_intern_s_toolkit/**
 .vscode-test/**
 out/**
 node_modules/**
@@ -11,6 +12,4 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 
-userdata/jobs_history
-userdata/saved_jobs
-userdata/submit_jobs_*
+userdata/**

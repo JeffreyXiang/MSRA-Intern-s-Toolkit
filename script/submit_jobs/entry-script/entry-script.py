@@ -22,10 +22,11 @@ class ScriptBuilder:
         self.cmds += cmd
 
     def print(self, info):
-        info = info.replace("\\", '\\\\').replace("\"", "\\\"").replace("$", "\\$")
+        info = info.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
         self._append(f"echo \"[MSRA Intern's Toolkit] Job Launcher: {info}\"")
 
     def add(self, cmd):
+        cmd = cmd.replace("\\;", ";")
         self.print(cmd)
         self._append(cmd)
 

@@ -82,12 +82,13 @@
     <script>
         const vscode = acquireVsCodeApi();
 
-        function update_copy_data_hiddens() {
-            let value = document.getElementById('copy_data').checked;
-            let objs = document.getElementsByClassName('copy_data_');
-            for (let i = 0; i < objs.length; i++) {
-                objs[i].style.display = value ? null : 'none';
-            }
+        function update_checkbox_hiddens() {
+            let copy_data = document.getElementById('copy_data').checked;
+            let sync_code = document.getElementById('sync_code').checked;
+            document.getElementsByClassName('sas_token_')[0].style.display = (sync_code || copy_data) ? null : 'none';
+            document.getElementsByClassName('data_dir_')[0].style.display = copy_data ? null : 'none';
+            document.getElementsByClassName('data_subdir_')[0].style.display = copy_data ? null : 'none';
+            document.getElementsByClassName('ignore_dir_')[0].style.display = sync_code ? null : 'none';
         }
 
         window.addEventListener('message', event => {
@@ -109,11 +110,16 @@
                     document.getElementById('name').value            = params.experiment.name;
                     document.getElementById('workdir').value         = params.experiment.workdir;
                     document.getElementById('copy_data').checked     = params.experiment.copy_data;
+                    document.getElementById('sync_code').checked     = params.experiment.sync_code;
                     document.getElementById('sas_token').value       = params.experiment.sas_token;
                     document.getElementById('data_dir').value        = params.experiment.data_dir;
                     document.getElementById('data_subdir').value     = params.experiment.data_subdir;
+                    document.getElementById('ignore_dir').value     = params.experiment.ignore_dir;
                     document.getElementById('script').value          = params.experiment.script;
-                    update_copy_data_hiddens();
+                    update_checkbox_hiddens();
+                    break;
+                case 'noWorkspace':
+                    document.body.innerHTML = '<div style="margin: 10px;">Please open a workspace first.</div>';
                     break;
             }
         })
@@ -128,9 +134,9 @@
 
         function config_changed(group, label) {
             let value;
-            if (label == 'copy_data') {
+            if (label == 'copy_data' || label == 'sync_code') {
                 value = document.getElementById(label).checked;
-                update_copy_data_hiddens();
+                update_checkbox_hiddens();
             }
             else if (label == 'node_count') {
                 value = parseInt(document.getElementById(label).value);
@@ -167,16 +173,19 @@
     <div class="groupbar">Experiment</div>
     <div class="item"><div class="label">Name:</div><input id="name" type="text" onchange="config_changed('experiment', 'name')"></div>
     <div class="item"><div class="label">Work Dir:</div><input id="workdir" type="text" onchange="config_changed('experiment', 'workdir')"></div>
-    <div class="item"><div class="label">Copy Data:</div><input id="copy_data" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'copy_data')"></div>
-    <div class="item copy_data_"><div class="label">SAS Token:</div><input id="sas_token" type="text" onchange="config_changed('experiment', 'sas_token')"></div>
-    <div class="item copy_data_"><div class="label">Data Dir:</div><input id="data_dir" type="text" onchange="config_changed('experiment', 'data_dir')"></div>
-    <div class="item copy_data_"><div class="label">Data Subdir:</div><input id="data_subdir" type="text" onchange="config_changed('experiment', 'data_subdir')"></div>
+    <div class="item" style="display: inline-flex;"><div class="label">Copy Data:</div><input id="copy_data" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'copy_data')"></div>
+    <div class="item" style="display: inline-flex;"><div class="label">Sync Code:</div><input id="sync_code" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'sync_code')"></div>
+    <div class="item sas_token_"><div class="label">SAS Token:</div><input id="sas_token" type="text" onchange="config_changed('experiment', 'sas_token')"></div>
+    <div class="item data_dir_"><div class="label">Data Dir:</div><input id="data_dir" type="text" onchange="config_changed('experiment', 'data_dir')"></div>
+    <div class="item data_subdir_"><div class="label">Data Subdir:</div><input id="data_subdir" type="text" onchange="config_changed('experiment', 'data_subdir')"></div>
+    <div class="item ignore_dir_"><div class="label">Ignore Dir:</div><input id="ignore_dir" type="text" onchange="config_changed('experiment', 'ignore_dir')"></div>
     <div class="item"><div class="label">Script:</div><textarea id="script" type="text" onchange="config_changed('experiment', 'script')"></textarea></div>
     <div id="buttons">
         <div class="button", onclick="send_message({command: 'load'})">Load</div>
         <div class="button", onclick="send_message({command: 'save'})">Save</div>
     </div>
     <div id="buttons">
+        <div class="button", onclick="send_message({command: 'synchronize'})">Synchronize</div>
         <div class="button", onclick="send_message({command: 'submit'})">Submit</div>
     </div>
 </body>

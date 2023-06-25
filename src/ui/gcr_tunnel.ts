@@ -45,6 +45,13 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
         }
     }
 
+    public notWin() {
+        if (this.view) {
+            let message = {command: 'notWin'};
+            this.view.webview.postMessage(message);
+        }
+    }
+
     public update(idx: number, tunnel: gcr.Tunnel) {
         if (this.view) {
             let message = {command: 'update', params: {idx: idx, tunnel: tunnel}};

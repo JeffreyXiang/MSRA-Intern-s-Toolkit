@@ -141,6 +141,9 @@
                     }
                     document.getElementById("list").innerHTML = html;
                     break;
+                case 'notWin':
+                    document.body.innerHTML = '<div style="margin: 10px;">GCR Tunnel is only available on Windows.</div>';
+                    break;
                 case 'update':
                     document.getElementsByClassName('item')[params.idx].getElementsByClassName('state')[0].innerHTML = (
                         params.tunnel.state == 'closed' ? `<div class="action", onclick="send_message({command: 'open', idx: ${params.idx}})">Open</div>` :

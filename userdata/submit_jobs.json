@@ -1,1 +1,0 @@
-{"cluster":{"virtual_cluster":"msroctovc","instance_type":"","sla_tier":"Basic"},"storage":{"datastore_name":"","container_name":"","account_name":"","account_key":""},"environment":{"docker_image":"","setup_script":""},"experiment":{"name":"","workdir":"","copy_data":true,"sas_token":"","data_dir":"","script":""}}

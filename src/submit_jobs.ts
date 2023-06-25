@@ -1,36 +1,47 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process'
-import {vscodeContext} from './extension'
+import {vscodeContext, outputChannel} from './extension'
 import {SubmitJobsView} from './ui/submit_jobs'
-import { getFile, globalPath, listFiles, exists, saveFile, showErrorMessageWithHelp } from './utils';
+import { getWorkspaceFile, globalPath, workspacePath, listWorkspaceFiles, workspaceExists, saveWorkspaceFile, showErrorMessageWithHelp } from './utils';
+import { resolve } from 'path';
+
+class ClusterConfig {
+    virtual_cluster: string = 'msroctovc'
+    instance_type: string = ''
+    node_count: number = 1
+    sla_tier: string = 'Basic'
+}
+
+class StorageConfig {
+    datastore_name: string = ''
+    container_name: string = ''
+    account_name: string = ''
+    account_key: string = ''
+}
+
+class EnvironmentConfig {
+    docker_image: string = ''
+    setup_script: string | Array<string> = ''
+}
+
+class ExperimentConfig {
+    name: string = ''
+    workdir: string = ''
+    copy_data: boolean = true
+    sync_code: boolean = true
+    sas_token: string = ''
+    data_dir: string = ''
+    data_subdir: string = ''
+    ignore_dir: string = ''
+    script: string | Array<string> = ''
+}
 
 export class JobConfig {
-    cluster: {
-        virtual_cluster: string;
-        instance_type: string;
-        node_count: number;
-        sla_tier: string;
-    } = {virtual_cluster: 'msroctovc', instance_type: '', node_count: 1, sla_tier: 'Basic'};
-    storage: {
-        datastore_name: string;
-        container_name: string;
-        account_name: string;
-        account_key: string;
-    } = {datastore_name: '', container_name: '', account_name: '', account_key: ''};
-    environment: {
-        docker_image: string;
-        setup_script: string;        
-    } = {docker_image: '', setup_script: ''};
-    experiment: {
-        name: string;
-        workdir: string;
-        copy_data: boolean;
-        sas_token: string;
-        data_dir: string;
-        data_subdir: string;
-        script: string;
-    } = {name: '', workdir: '', copy_data: true, sas_token: '', data_dir: '', data_subdir: '', script: ''};
-
+    cluster: ClusterConfig = new ClusterConfig();
+    storage: StorageConfig = new StorageConfig();
+    environment: EnvironmentConfig = new EnvironmentConfig();
+    experiment: ExperimentConfig = new ExperimentConfig();
+    
     constructor(init?: Partial<JobConfig>) {
         if (init) {
             if (init.cluster) Object.assign(this.cluster, init.cluster);
@@ -45,60 +56,128 @@ var config: JobConfig;
 
 export var ui: SubmitJobsView;
 
-export function submit() {
-    vscode.window.withProgress(
+export async function synchronize() {
+    if (!config.experiment.sync_code) return 'skipped';
+    return vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, cancellable: false},
+        ((cfg) => (async (progress) => {
+            progress.report({message: "Synchronizing code..."});
+            return new Promise<string> (resolve => {
+                let source = '"' + workspacePath('../*') + '"'
+                let destination = '"' + cfg.experiment.sas_token.split('?')[0] + '/' + cfg.experiment.workdir + '/?' + cfg.experiment.sas_token.split('?')[1] + '"';
+                let args = ['copy', source, destination, '--recursive'];
+                if (cfg.experiment.ignore_dir) args.push('--exclude-path', `".msra_intern_s_toolkit;.git;${cfg.experiment.ignore_dir}"`);
+                else args.push('--exclude-path', '".msra_intern_s_toolkit;.git"');
+                outputChannel.appendLine(`[CMD] > azcopy ${args.join(' ')}`);
+                let proc = cp.spawn('azcopy', args, {shell: true});
+                let timeout = setTimeout(() => {
+                    proc.kill();
+                    showErrorMessageWithHelp(`Failed to synchronize code. Command timeout.`);
+                    resolve('timeout');
+                }, 60000);
+                proc.stdout.on('data', (data) => {
+                    let sdata = String(data);
+                    outputChannel.append('[CMD OUT] ' + sdata);
+                    console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
+                    if (sdata.includes('Authentication failed')) {
+                        proc.kill();
+                        clearTimeout(timeout);
+                        showErrorMessageWithHelp(`Failed to synchronize code. Authentication failed.`);
+                        resolve('failed');
+                    }
+                });
+                proc.stderr.on('data', (data) => {
+                    let sdata = String(data);
+                    outputChannel.append('[CMD ERR] ' + sdata);
+                    console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
+                    if (sdata.includes('not recognized') || sdata.includes('command not found')) {
+                        proc.kill();
+                        clearTimeout(timeout);
+                        showErrorMessageWithHelp(`Failed to synchronize code. azcopy not found.`);
+                        resolve('failed');
+                    }
+                    else if (sdata.includes('Permission denied')) {
+                        proc.kill();
+                        clearTimeout(timeout);
+                        showErrorMessageWithHelp(`Failed to synchronize code. Permission denied.`);
+                        resolve('failed');
+                    }
+                });
+                proc.on('exit', (code) => {
+                    clearTimeout(timeout);
+                    if (code == 0) {
+                        vscode.window.showInformationMessage(`Code synchronized.`);
+                        resolve('success');
+                    } else if (code != null) {
+                        vscode.window.showErrorMessage ('azcopy failed with exit code ' + code);
+                        resolve('failed');
+                    }
+                    else resolve('failed');
+                });
+            });
+        }))(config)
+    );
+}
+
+export async function submit() {
+    return vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false}, 
         ((cfg) => (async (progress) => {
             progress.report({message: "Submitting the job..."});
-            return new Promise<void> (resolve => {
+            return new Promise<string> (resolve => {
                 checkCondaEnv(true).then((passed) => {
                     if (passed) {
-                        let cfgPath = `./userdata/submit_jobs_${new Date().getTime()}.json`
-                        saveFile(cfgPath, cfg);
-                        let proc = cp.spawn('conda', ['activate', 'msra-intern-s-toolkit', '&&', 'python', globalPath('script/submit_jobs/submit.py'), '--config', globalPath(cfgPath)], {shell: true});
+                        let cfgPath = `./userdata/temp/submit_jobs_${new Date().getTime()}.json`
+                        saveWorkspaceFile(cfgPath, cfg);
+                        outputChannel.appendLine(`[CMD] > conda run -n msra-intern-s-toolkit python ${globalPath('script/submit_jobs/submit.py')} --config ${workspacePath(cfgPath)}`);
+                        let proc = cp.spawn('conda', ['run', '-n', 'msra-intern-s-toolkit', 'python', globalPath('script/submit_jobs/submit.py'), '--config', workspacePath(cfgPath)], {shell: true});
                         let timeout = setTimeout(() => {
                             proc.kill();
                             showErrorMessageWithHelp(`Failed to submit the job. Command timeout.`);
-                            resolve();
+                            resolve('timeout');
                         }, 60000);
                         proc.stdout.on('data', (data) => {
                             let sdata = String(data);
-                            // console.log(`msra_intern_s_toolkit.submit: ${sdata}`);
+                            outputChannel.appendLine('[CMD OUT] ' + sdata);
+                            console.log(`msra_intern_s_toolkit.submit: ${sdata}`);
                             if (sdata.includes('Run(')) {
                                 proc.kill();
                                 clearTimeout(timeout);
                                 let id = sdata.trim().slice(4, -1).split(',')[1].trim().slice(4);
                                 vscode.window.showInformationMessage(`Job submitted. Id: ${id}`);
-                                saveFile(`./userdata/jobs_history/${id}.json`, cfg);
-                                resolve();
+                                saveWorkspaceFile(`./userdata/jobs_history/${id}.json`, cfg);
+                                resolve('success');
                             }
                         });
                         proc.stderr.on('data', (data) => {
                             let sdata = String(data);
-                            // console.error(`msra_intern_s_toolkit.submit: ${sdata}`);
+                            outputChannel.appendLine('[CMD ERR] ' + sdata);
+                            console.error(`msra_intern_s_toolkit.submit: ${sdata}`);
                         });
                         proc.on('exit', (code) => {
                             clearTimeout(timeout);
-                            if (code != null) showErrorMessageWithHelp(`Failed to submit the job. Unknown reason. code ${code}`);
-                            // console.log(`msra_intern_s_toolkit.submit: Process exited with ${code}`);
-                            resolve();
+                            if (code != null) {
+                                showErrorMessageWithHelp(`Failed to submit the job. Unknown reason. code ${code}`);
+                                resolve('failed');
+                            }
+                            console.log(`msra_intern_s_toolkit.submit: Process exited with ${code}`);
                         });
                     }
-                    else resolve();
+                    else resolve('failed');
                 });
             });
-        }))(JSON.stringify(config))
+        }))(JSON.stringify(config, null, 4))
     );
 }
 
 export function updateConfig(group: string, label: string, value: any) {
     (config as any)[group][label] = value;
-    saveFile('./userdata/submit_jobs.json', JSON.stringify(config));
+    saveWorkspaceFile('./userdata/submit_jobs.json', JSON.stringify(config, null, 4));
 }
 
 function loadJson(path: string) {
-    if (exists(path)) {
-        config = new JobConfig(JSON.parse(getFile(path)));
+    if (workspaceExists(path)) {
+        config = new JobConfig(JSON.parse(getWorkspaceFile(path)));
     }
     else {
         config = new JobConfig();
@@ -107,7 +186,7 @@ function loadJson(path: string) {
 
 async function loadHistory() {
     let res = await vscode.window.showQuickPick(
-        listFiles('userdata/jobs_history')
+        listWorkspaceFiles('userdata/jobs_history')
             .map((v) => v.slice(0, -5))
             .sort((a, b) => {
                 let a_ = a.split('_');
@@ -122,13 +201,13 @@ async function loadHistory() {
     });
     if (res == undefined) return;
     loadJson(`./userdata/jobs_history/${res}.json`);
-    saveFile('./userdata/submit_jobs.json', JSON.stringify(config));
+    saveWorkspaceFile('./userdata/submit_jobs.json', JSON.stringify(config, null, 4));
     refreshUI();
 }
 
 async function loadSaved() {
     let res = await vscode.window.showQuickPick(
-        listFiles('userdata/saved_jobs')
+        listWorkspaceFiles('userdata/saved_jobs')
             .map((v) => v.slice(0, -5)), {
         title: 'Select job config',
         canPickMany: false,
@@ -159,7 +238,7 @@ export async function save() {
     });
     if (res == undefined) return;
     // Check if the file exists
-    if (exists(`./userdata/saved_jobs/${res}.json`)) {
+    if (workspaceExists(`./userdata/saved_jobs/${res}.json`)) {
         let overwrite = await vscode.window.showQuickPick(
             ['Yes', 'No'], {
             title: `Config ${res} already exists. Overwrite?`,
@@ -168,7 +247,7 @@ export async function save() {
         });
         if (overwrite != 'Yes') return;
     }
-    saveFile(`./userdata/saved_jobs/${res}.json`, JSON.stringify(config));
+    saveWorkspaceFile(`./userdata/saved_jobs/${res}.json`, JSON.stringify(config, null, 4));
 }
 
 
@@ -183,8 +262,10 @@ function showSetupCondaEnvMessage() {
 
 function checkCondaEnv(showErrorMsg: boolean=false): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
+        outputChannel.appendLine('[CMD] > conda env list');
         cp.exec('conda env list', (error, stdout, stderr) => {
             if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let passed = stdout.includes('msra-intern-s-toolkit');
                 if (!passed) {
                     if (showErrorMsg) showErrorMessageWithHelp(`Failed to submit the job. Conda environment not found.`);
@@ -193,6 +274,7 @@ function checkCondaEnv(showErrorMsg: boolean=false): Promise<boolean> {
                 resolve(passed);
             }
             else if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
                 if (showErrorMsg) showErrorMessageWithHelp(`Failed to submit the job. Conda spawning failed.`);
                 resolve(false);
             }
@@ -206,13 +288,19 @@ async function setupCondaEnv() {
         async (progress) => {
             progress.report({message: "Setting up the conda environment..."});
             return new Promise<void> (resolve => {
+                outputChannel.appendLine('[CMD] > conda env create -f script/environment.yml');
                 let proc = cp.spawn('conda', ['env', 'create', '-f', globalPath('script/environment.yml')], {shell: true});
                 proc.stdout.on('data', (data) => {
                     let sdata = String(data);
+                    outputChannel.appendLine('[CMD OUT] ' + sdata);
                     if (sdata.includes('conda activate msra-intern-s-toolkit')) {
                         vscode.window.showInformationMessage(`Conda environment setup done.`);
                         resolve();
                     }
+                });
+                proc.stderr.on('data', (data) => {
+                    let sdata = String(data);
+                    outputChannel.appendLine('[CMD ERR] ' + sdata);
                 });
                 proc.on('exit', (code) => {
                     if (code != 0) vscode.window.showErrorMessage(`Failed to setup conda environment.`);
@@ -224,9 +312,15 @@ async function setupCondaEnv() {
 }
 
 export function init() {
-    checkCondaEnv();
-    
-    loadJson('./userdata/submit_jobs.json');
+    outputChannel.appendLine('[INFO] Initializing job submission module...');
+    if (vscode.workspace.workspaceFolders) {
+        outputChannel.appendLine('[INFO] Workspace folder found.');
+        checkCondaEnv();
+        loadJson('./userdata/submit_jobs.json');
+    }
+    else {
+        outputChannel.appendLine('[INFO] No workspace folder found.');
+    };
 
     ui = new SubmitJobsView();
     vscodeContext.subscriptions.push(vscode.window.registerWebviewViewProvider(
@@ -238,6 +332,7 @@ export function init() {
 
 export function refreshUI() {
     if (ui != undefined) {
-        ui.setContent(config);
+        if (!vscode.workspace.workspaceFolders) ui.noWorkspace();
+        else ui.setContent(config);
     }
 }

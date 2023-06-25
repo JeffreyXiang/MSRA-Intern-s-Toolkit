@@ -6,8 +6,9 @@ from azureml.core import Experiment
 from azureml.core import ScriptRunConfig
 from azureml.core.compute import ComputeTarget
 from azureml.core.runconfig import PyTorchConfiguration
+from azureml.core.authentication import AzureCliAuthentication
 from azureml.contrib.aisc.aiscrunconfig import AISuperComputerConfiguration
-from azureml.contrib.core.k8srunconfig import K8sComputeConfiguration
+from k8s_runconfig import K8sComputeConfiguration
 
 print(f"The azureml-sdk version is {azureml.core.VERSION}")
 
@@ -30,7 +31,7 @@ virtual_cluster_dict = {
 }
 is_itp = 'itp' in config['cluster']['virtual_cluster']
 
-ws = Workspace(**virtual_cluster_dict[config['cluster']['virtual_cluster']])
+ws = Workspace(**virtual_cluster_dict[config['cluster']['virtual_cluster']], auth=AzureCliAuthentication())
 
 # Storage
 ds = Datastore.register_azure_blob_container(
@@ -49,10 +50,10 @@ entry_script = "./entry-script.py"
 
 arguments = [
     "--workdir", str(data_ref),
-    "--script", config['experiment']['script']
+    "--script", ';'.join(config['experiment']['script']),
 ]
 if config['environment']['setup_script'] != '':
-    arguments += ["--setup", config['environment']['setup_script']]
+    arguments += ["--setup", ';'.join(config['environment']['setup_script'])]
 if config['experiment']['copy_data']:
     arguments += [
         "--sas", config['experiment']['sas_token'],

@@ -6,7 +6,7 @@ import * as job from './submit_jobs';
 import * as gcr from './gcr_tunnel';
 
 export var vscodeContext:vscode.ExtensionContext;
-
+export var outputChannel:vscode.OutputChannel = vscode.window.createOutputChannel('MSRA Intern\'s Toolkit');
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed

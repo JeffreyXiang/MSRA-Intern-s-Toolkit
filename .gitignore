@@ -3,8 +3,7 @@ dist
 node_modules
 .vscode-test/
 .vscode/
+.msra_intern_s_toolkit/
 *.vsix
 
-userdata/jobs_history
-userdata/saved_jobs
-userdata/submit_jobs_*
+userdata/

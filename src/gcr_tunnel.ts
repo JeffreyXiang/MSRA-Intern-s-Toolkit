@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process'
 import * as process from 'process'
-import {vscodeContext} from './extension'
+import {vscodeContext, outputChannel} from './extension'
 import * as az from './azure';
 import {globalPath, pidIsRunning, findNetProcess, getFile, saveFile, exists, showErrorMessageWithHelp} from './utils'
 import {GCRTunnelView} from './ui/gcr_tunnel'
@@ -141,6 +141,7 @@ function openBastionTunnel(i: number) {
     tunnels[i].state = 'bastion_opening';
     update(i);
     console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`)
+    outputChannel.appendLine(`[CMD] > pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`)
     let proc = cp.spawn('pwsh.exe', [globalPath('script/gcr_tunnel/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', `${az.domain}.${az.alias}`, '-port', `${tunnels[i].port}`]);
     let timeout = setTimeout(((i) => () => {
         proc.kill();
@@ -156,11 +157,13 @@ function openBastionTunnel(i: number) {
         update(i);
     })(i))
     proc.stdout.on('data', (data) => {
-        // console.log(`msra_intern_s_toolkit.openTunnel: ${data}`);
+        outputChannel.appendLine('[CMD OUT] ' + data);
+        console.log(`msra_intern_s_toolkit.openTunnel: ${data}`);
     });
     proc.stderr.on('data', ((i) => (data) => {
         let sdata = String(data);
-        // console.error(`msra_intern_s_toolkit.openTunnel: ${sdata}`);
+        outputChannel.appendLine('[CMD ERR] ' + sdata);
+        console.error(`msra_intern_s_toolkit.openTunnel: ${sdata}`);
         if (sdata.includes('SecurityError')) {
             proc.kill();
             clearTimeout(timeout);
@@ -188,7 +191,7 @@ function openBastionTunnel(i: number) {
                     showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Keypath not found.`);
                     break;
                 default:
-                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Error code ${code}`);
+                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. code ${code}`);
             }
             tunnels[i].state = 'bastion_opening_failed';
             update(i);
@@ -200,6 +203,7 @@ function openSSHTunnel(i: number) {
     tunnels[i].state = 'ssh_opening';
     update(i);
     console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=\\\\.\\NUL`)
+    outputChannel.appendLine(`[CMD] > ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=\\\\.\\NUL`);
     let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${az.domain}.${az.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=\\\\.\\NUL'], {detached: true, stdio: 'ignore'});
     proc.unref();
     proc.on('exit', (code) => {
@@ -372,14 +376,20 @@ function update(i: number) {
 }
 
 export function init() {
-    vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.addGCRTunnel', () => {addTunnel()}));
-	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.deleteGCRTunnel', () => {deleteTunnel()}));
-	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.openGCRTunnel', () => {openTunnel()}));
-	vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.closeGCRTunnel', () => {closeTunnel()}));
+    outputChannel.appendLine('[INFO] Initializing GCR tunnel module...');
+    let isWin = process.platform === "win32";
+    outputChannel.appendLine(`[INFO] Platform: ${process.platform}`);
 
-    tunnels = exists('./userdata/gcr_tunnel.json') ?
-        JSON.parse(getFile('./userdata/gcr_tunnel.json')).map((v: TunnelSetting) => new Tunnel(v)) :
-        [];
+    if (isWin) {
+        vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.addGCRTunnel', () => {addTunnel()}));
+        vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.deleteGCRTunnel', () => {deleteTunnel()}));
+        vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.openGCRTunnel', () => {openTunnel()}));
+        vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.closeGCRTunnel', () => {closeTunnel()}));
+
+        tunnels = exists('./userdata/gcr_tunnel.json') ?
+            JSON.parse(getFile('./userdata/gcr_tunnel.json')).map((v: TunnelSetting) => new Tunnel(v)) :
+            [];
+    }
 
     ui = new GCRTunnelView();
     vscodeContext.subscriptions.push(vscode.window.registerWebviewViewProvider(
@@ -388,18 +398,22 @@ export function init() {
         {webviewOptions: {retainContextWhenHidden: true}}
     ));
 
-    setInterval(() => {
-		if (az.isLoggedIn) polling();
-	}, 1000);
+    if (isWin) {
+        setInterval(() => {
+            if (az.isLoggedIn) polling();
+        }, 1000);
+    }
 }
 
 export function refreshUI() {
     if (ui != undefined) {
-        ui.setContent(tunnels);
+        let isWin = process.platform === "win32";
+        if (isWin) ui.setContent(tunnels);
+        else ui.notWin();
     }
 }
 
 function refresh() {
-    saveFile('./userdata/gcr_tunnel.json', JSON.stringify(Array(tunnels.length).fill(null).map((_, i) => tunnels[i].getSetting())));
+    saveFile('./userdata/gcr_tunnel.json', JSON.stringify(Array(tunnels.length).fill(null).map((_, i) => tunnels[i].getSetting()), null, 4));
     refreshUI();
 }

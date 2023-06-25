@@ -1,6 +1,6 @@
 # MSRA Intern's Toolkit
 
-MSRA Intern's Toolkit is a VS Code extension for research interns in MSRA(Microsoft Research Asia) to simplify some of the troublesome but frequently used process including submitting jobs to clusters, opening tunnels to GCR sandboxes, etc.
+MSRA Intern's Toolkit is a VS Code extension for research interns in MSRA (Microsoft Research Asia) to simplify some of the troublesome but frequently used process including submitting jobs to clusters, opening tunnels to GCR sandboxes, etc.
 
 This extension provide you a intuitive and interactive way to deal with these annoying process. Just get rid of those scripts that nobody can remember and embrace this convinient user interface.
 
@@ -10,10 +10,10 @@ This extension provide you a intuitive and interactive way to deal with these an
 
 ## Requirements
 * First of all, when using GCR. you must have a Linux SSH key generated and submitted to the GCR Pubkey Manager. For instructions in completing this setup, please reference [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
-* Install Azure CLI with version higher than 2.32. Latest: [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli).
+* Install Azure CLI with version higher than 2.32. Latest: [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 * * You can check your Azure CLI version with: `az version --output table`.
 * Install the Azure CLI ssh extension: `az extension add --name ssh`.
-* Make sure Powershell and OpenSSH is installed. Learn how to install them from [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) and [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui).
+* Only for Windows machine, to use GCR tunnels, make sure Powershell and OpenSSH is installed. Learn how to install them from [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) and [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui).
 
 ## Usage
 
@@ -25,9 +25,7 @@ First of all, as the welcome says, login to Azure with the **Click to login** bu
 ```
 conda create -n msra-intern-s-toolkit python=3.8
 conda activate msra-intern-s-toolkit
-pip install azureml-sdk
-pip install azureml-contrib-aisc
-pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml_contrib_k8s
+pip install azureml-sdk azure-cli azureml-contrib-aisc
 ```
 * Fill the form and press **Submit**. If everything is ok, you shall get a success message with job id after a while.
 * If you want to load the config of submitted jobs. Press **Load** and select it in submission history.
@@ -65,11 +63,16 @@ Storage zone sets the working directory where your script will run. It must be s
 * **Name:** Arbitrary name for your experiment.
 * **Work Dir:** Working directory related to the root of yout blob container (container name is excluded).
 * **Copy Data:** Whether to copy the dataset from blob container to the node before running the experiment. Note that although the specified working directory on the blob container will be mounted to the node, directly reading it with file system may be extremely slow. So, I recommend to do data transfer beforehand using `azcopy` which is specially designed for high speed massive data transfer from Azure Storage.
-* **SAS Token:** Shows if **Copy Data** is checked. The SAS token of your blob container. Right click the container to generate one.
+* **Sync Code:** Whether to sync the code from working directory to blob container before running the experiment. You can also only sync the code without submitting the job by pressing **Synchorize** button.
+* **SAS Token:** Shows if either **Copy Data** or **Sync Code** is checked. The SAS token of your blob container. Right click the container to generate one.
 * **Data Dir:** Shows if **Copy Data** is checked. Data directory related to the root of yout blob container (container name is excluded).
+* **Data Subdur:** Shows if **Copy Data** is checked. Subdirectories of data directory to be copied. Use ';' to seperate multiple subdirectories.
+* **Ignore Dir:** Shows if **Sync Code** is checked. Directories to be ignored when syncing. Use ';' to seperate multiple directories.
 * **Scipt:** Script to run the experiment.
 
 ### GCR Tunnel
+
+Only available under local Windows machine.
 * Press **Add** button to setup a new tunnel.
 * Input sandbox ID and port as guided. Note that:
 * * Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.
@@ -89,7 +92,7 @@ Host tunnel
 
 **Azure CLI not installed.**
 
-* Install Azure CLI with version higher than 2.32. See [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli).
+* Install Azure CLI with version higher than 2.32. See [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 
 **Command timeout.**
 
@@ -109,9 +112,7 @@ Host tunnel
 ```
 conda create -n msra-intern-s-toolkit python=3.8
 conda activate msra-intern-s-toolkit
-pip install azureml-sdk
-pip install azureml-contrib-aisc
-pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml_contrib_k8s
+pip install azureml-sdk azure-cli azureml-contrib-aisc
 ```
 
 ### GCR Tunnel
@@ -136,7 +137,7 @@ pip install --upgrade --disable-pip-version-check --extra-index-url https://azur
 
 ## For more information
 
-* [Install the Azure CLI for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli)
+* [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 * [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
 * [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui)
 * [GCR Bastion - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/6627/GCR-Bastion)
