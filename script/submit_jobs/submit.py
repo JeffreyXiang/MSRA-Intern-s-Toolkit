@@ -50,10 +50,10 @@ entry_script = "./entry-script.py"
 
 arguments = [
     "--workdir", str(data_ref),
-    "--script", ';'.join(config['experiment']['script']),
+    "--script", ';'.join(config['experiment']['script']) if isinstance(config['experiment']['script'], list) else config['experiment']['script'],
 ]
 if config['environment']['setup_script'] != '':
-    arguments += ["--setup", ';'.join(config['environment']['setup_script'])]
+    arguments += ["--setup", ';'.join(config['environment']['setup_script']) if isinstance(config['environment']['setup_script'], list) else config['environment']['setup_script']]
 if config['experiment']['copy_data']:
     arguments += [
         "--sas", config['experiment']['sas_token'],

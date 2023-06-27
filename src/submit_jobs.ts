@@ -3,7 +3,6 @@ import * as cp from 'child_process'
 import {vscodeContext, outputChannel} from './extension'
 import {SubmitJobsView} from './ui/submit_jobs'
 import { getWorkspaceFile, globalPath, workspacePath, listWorkspaceFiles, workspaceExists, saveWorkspaceFile, showErrorMessageWithHelp } from './utils';
-import { resolve } from 'path';
 
 class ClusterConfig {
     virtual_cluster: string = 'msroctovc'
