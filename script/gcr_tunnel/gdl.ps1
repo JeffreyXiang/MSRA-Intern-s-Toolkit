@@ -20,8 +20,10 @@ $EX2 = "46da6261-2167-4e71-8b0d-f4a45215ce61"
 $EX3 = "992cb282-dd69-41bf-8fcc-cc8801d28b58"
 $BAST1 = "GPU-Sandbox-VNET-bastion"
 $BAST2 = "GPU-Sandbox2-VNET-bastion"
+$BAST3 = "GPU-Sandbox3-VNET-bastion"
 $RG1 = "GPU-SANDBOX"
 $RG2 = "GPU-SANDBOX2"
+$RG3 = "GPU-SANDBOX3"
 $SANDBOXNUM=$Num
 
 if (!(get-command az 2>$null)) {
@@ -52,7 +54,7 @@ if ($SANDBOXNUM -like '0*'){
    Write-Output $COMMAND
    Invoke-Expression $COMMAND
 }
-if ($SANDBOXNUM -ge 1000 -and $SANDBOXNUM -le 1115 -or $SANDBOXNUM -ge 1216 -and $SANDBOXNUM -lt 1999) {
+if ($SANDBOXNUM -ge 1000 -and $SANDBOXNUM -le 1115) {
    az account set --subscription $EX2
    $COMMAND = "az network bastion $BASTIONCOMMAND --subscription $EX2 --name $BAST1 --resource-group $RG1 --target-resource-id /subscriptions/$EX2/resourceGroups/$RG1/providers/Microsoft.Compute/virtualMachines/GCRAZGDL$SANDBOXNUM $BASTIONPARAMS"
    Write-Output $COMMAND
@@ -61,6 +63,12 @@ if ($SANDBOXNUM -ge 1000 -and $SANDBOXNUM -le 1115 -or $SANDBOXNUM -ge 1216 -and
 if ($SANDBOXNUM -ge 1116 -and $SANDBOXNUM -le 1215) { 
    az account set --subscription $EX2
    $COMMAND = "az network bastion $BASTIONCOMMAND --subscription $EX2 --name $BAST2 --resource-group $RG2 --target-resource-id /subscriptions/$EX2/resourceGroups/$RG2/providers/Microsoft.Compute/virtualMachines/GCRAZGDL$SANDBOXNUM $BASTIONPARAMS"
+   Write-Output $COMMAND
+   Invoke-Expression $COMMAND
+}
+if ($SANDBOXNUM -ge 1400 -and $SANDBOXNUM -le 1767) { 
+   az account set --subscription $EX2
+   $COMMAND = "az network bastion $BASTIONCOMMAND --subscription $EX2 --name $BAST3 --resource-group $RG3 --target-resource-id /subscriptions/$EX2/resourceGroups/$RG3/providers/Microsoft.Compute/virtualMachines/GCRAZGDL$SANDBOXNUM $BASTIONPARAMS"
    Write-Output $COMMAND
    Invoke-Expression $COMMAND
 }
