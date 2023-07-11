@@ -1,3 +1,4 @@
+import os
 import azureml.core
 from azureml.core import Workspace
 from azureml.core import Datastore
@@ -50,16 +51,8 @@ entry_script = "./entry-script.py"
 
 arguments = [
     "--workdir", str(data_ref),
-    "--script", ';'.join(config['experiment']['script']) if isinstance(config['experiment']['script'], list) else config['experiment']['script'],
+    "--config", f'.msra_intern_s_toolkit/userdata/temp/{os.path.basename(args.config)}',
 ]
-if config['environment']['setup_script'] != '':
-    arguments += ["--setup", ';'.join(config['environment']['setup_script']) if isinstance(config['environment']['setup_script'], list) else config['environment']['setup_script']]
-if config['experiment']['copy_data']:
-    arguments += [
-        "--sas", config['experiment']['sas_token'],
-        "--data_dir", config['experiment']['data_dir'],
-        "--data_subdir", config['experiment']['data_subdir'],
-    ]
 
 src = ScriptRunConfig(
     source_directory=source_directory,

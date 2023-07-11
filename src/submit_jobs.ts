@@ -16,6 +16,7 @@ class StorageConfig {
     container_name: string = ''
     account_name: string = ''
     account_key: string = ''
+    sas_token: string = ''
 }
 
 class EnvironmentConfig {
@@ -28,7 +29,6 @@ class ExperimentConfig {
     workdir: string = ''
     copy_data: boolean = true
     sync_code: boolean = true
-    sas_token: string = ''
     data_dir: string = ''
     data_subdir: string = ''
     ignore_dir: string = ''
@@ -41,13 +41,36 @@ export class JobConfig {
     environment: EnvironmentConfig = new EnvironmentConfig();
     experiment: ExperimentConfig = new ExperimentConfig();
     
-    constructor(init?: Partial<JobConfig>) {
-        if (init) {
-            if (init.cluster) Object.assign(this.cluster, init.cluster);
-            if (init.storage) Object.assign(this.storage, init.storage);
-            if (init.environment) Object.assign(this.environment, init.environment);
-            if (init.experiment) Object.assign(this.experiment, init.experiment);
-        }
+    constructor(init?: any) {
+        if (init.cluster.virtual_cluster !== undefined) this.cluster.virtual_cluster = init.cluster.virtual_cluster;
+        if (init.cluster.instance_type !== undefined) this.cluster.instance_type = init.cluster.instance_type;
+        if (init.cluster.node_count !== undefined) this.cluster.node_count = init.cluster.node_count;
+        if (init.cluster.sla_tier !== undefined) this.cluster.sla_tier = init.cluster.sla_tier;
+
+        if (init.storage.datastore_name !== undefined) this.storage.datastore_name = init.storage.datastore_name;
+        if (init.storage.container_name !== undefined) this.storage.container_name = init.storage.container_name;
+        if (init.storage.account_name !== undefined) this.storage.account_name = init.storage.account_name;
+        if (init.storage.account_key !== undefined) this.storage.account_key = init.storage.account_key;
+        if (init.storage.sas_token !== undefined) this.storage.sas_token = init.storage.sas_token;
+
+        if (init.environment.docker_image !== undefined) this.environment.docker_image = init.environment.docker_image;
+        if (init.environment.setup_script !== undefined) this.environment.setup_script = init.environment.setup_script;
+
+        if (init.experiment.name !== undefined) this.experiment.name = init.experiment.name;
+        if (init.experiment.workdir !== undefined) this.experiment.workdir = init.experiment.workdir;
+        if (init.experiment.copy_data !== undefined) this.experiment.copy_data = init.experiment.copy_data;
+        if (init.experiment.sync_code !== undefined) this.experiment.sync_code = init.experiment.sync_code;
+        if (init.experiment.data_dir !== undefined) this.experiment.data_dir = init.experiment.data_dir;
+        if (init.experiment.data_subdir !== undefined) this.experiment.data_subdir = init.experiment.data_subdir;
+        if (init.experiment.ignore_dir !== undefined) this.experiment.ignore_dir = init.experiment.ignore_dir;
+        if (init.experiment.script !== undefined) this.experiment.script = init.experiment.script;
+
+        // v1.2 convertion
+        if (typeof this.environment.setup_script === 'string') this.environment.setup_script = this.environment.setup_script.split('\n');
+        if (typeof this.experiment.script === 'string') this.experiment.script = this.experiment.script.split('\n');
+
+        // v1.3 convertion
+        if (init.experiment.sas_token) this.storage.sas_token = init.experiment.sas_token;
     }
 }
 
@@ -60,10 +83,10 @@ export async function synchronize() {
     return vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false},
         ((cfg) => (async (progress) => {
-            progress.report({message: "Synchronizing code..."});
+            progress.report({message: "Synchronizing code...", increment: 0});
             return new Promise<string> (resolve => {
-                let source = '"' + workspacePath('../*') + '"'
-                let destination = '"' + cfg.experiment.sas_token.split('?')[0] + '/' + cfg.experiment.workdir + '/?' + cfg.experiment.sas_token.split('?')[1] + '"';
+                let source = `"${workspacePath('../*')}"`;
+                let destination = `"${cfg.storage.sas_token.split('?')[0]}/${cfg.experiment.workdir}/?${cfg.storage.sas_token.split('?')[1]}"`;
                 let args = ['copy', source, destination, '--recursive'];
                 if (cfg.experiment.ignore_dir) args.push('--exclude-path', `".msra_intern_s_toolkit;.git;${cfg.experiment.ignore_dir}"`);
                 else args.push('--exclude-path', '".msra_intern_s_toolkit;.git"');
@@ -74,6 +97,7 @@ export async function synchronize() {
                     showErrorMessageWithHelp(`Failed to synchronize code. Command timeout.`);
                     resolve('timeout');
                 }, 60000);
+                let lastPercent = 0;
                 proc.stdout.on('data', (data) => {
                     let sdata = String(data);
                     outputChannel.append('[CMD OUT] ' + sdata);
@@ -81,8 +105,13 @@ export async function synchronize() {
                     if (sdata.includes('Authentication failed')) {
                         proc.kill();
                         clearTimeout(timeout);
-                        showErrorMessageWithHelp(`Failed to synchronize code. Authentication failed.`);
+                        showErrorMessageWithHelp(`Failed to synchronize code. SAS authentication failed.`);
                         resolve('failed');
+                    }
+                    else if (/[0-9.]+\s%,\s[0-9]+\sDone,\s[0-9]+\sFailed,\s[0-9]+\sPending,\s[0-9]+\sSkipped,\s[0-9]+\sTotal,\s2-sec\sThroughput\s\(Mb\/s\):\s[0-9.]+/g.test(sdata)) {
+                        let percent = Number(sdata.split('%')[0]);
+                        progress.report({increment: percent - lastPercent});
+                        lastPercent = percent;
                     }
                 });
                 proc.stderr.on('data', (data) => {
@@ -92,7 +121,7 @@ export async function synchronize() {
                     if (sdata.includes('not recognized') || sdata.includes('command not found')) {
                         proc.kill();
                         clearTimeout(timeout);
-                        showErrorMessageWithHelp(`Failed to synchronize code. azcopy not found.`);
+                        showErrorMessageWithHelp(`Failed to synchronize code. Azcopy not found.`);
                         resolve('failed');
                     }
                     else if (sdata.includes('Permission denied')) {
@@ -122,50 +151,117 @@ export async function submit() {
     return vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false}, 
         ((cfg) => (async (progress) => {
-            progress.report({message: "Submitting the job..."});
-            return new Promise<string> (resolve => {
-                checkCondaEnv(true).then((passed) => {
-                    if (passed) {
-                        let cfgPath = `./userdata/temp/submit_jobs_${new Date().getTime()}.json`
-                        saveWorkspaceFile(cfgPath, cfg);
-                        outputChannel.appendLine(`[CMD] > conda run -n msra-intern-s-toolkit python ${globalPath('script/submit_jobs/submit.py')} --config ${workspacePath(cfgPath)}`);
-                        let proc = cp.spawn('conda', ['run', '-n', 'msra-intern-s-toolkit', 'python', globalPath('script/submit_jobs/submit.py'), '--config', workspacePath(cfgPath)], {shell: true});
-                        let timeout = setTimeout(() => {
+            progress.report({message: "Submitting the job...", increment: 0});
+            return new Promise<string> (async resolve => {
+                let passed = await checkCondaEnv(true);
+                if (!passed) {
+                    resolve('failed');
+                    return;
+                }
+
+                let cfgPath = `./userdata/temp/submit_jobs_${new Date().getTime()}.json`;
+                saveWorkspaceFile(cfgPath, JSON.stringify(cfg, null, 4));
+
+                // First step: upload the config file
+                let status1 = await new Promise<string> (resolve1 => {
+                    let destination = `"${cfg.storage.sas_token.split('?')[0]}/${cfg.experiment.workdir}/.msra_intern_s_toolkit/userdata/temp/?${cfg.storage.sas_token.split('?')[1]}"`;
+                    let args = ['copy', workspacePath(cfgPath), destination];
+                    outputChannel.appendLine(`[CMD] > azcopy ${args.join(' ')}`);
+                    let proc = cp.spawn('azcopy', args, {shell: true});
+                    progress.report({increment: 25});
+                    let timeout = setTimeout(() => {
+                        proc.kill();
+                        showErrorMessageWithHelp(`Failed to submit the job. Command timeout.`);
+                        resolve1('timeout');
+                    }, 60000);
+                    proc.stdout.on('data', (data) => {
+                        let sdata = String(data);
+                        outputChannel.append('[CMD OUT] ' + sdata);
+                        console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
+                        if (sdata.includes('Authentication failed')) {
                             proc.kill();
-                            showErrorMessageWithHelp(`Failed to submit the job. Command timeout.`);
-                            resolve('timeout');
-                        }, 60000);
-                        proc.stdout.on('data', (data) => {
-                            let sdata = String(data);
-                            outputChannel.appendLine('[CMD OUT] ' + sdata);
-                            console.log(`msra_intern_s_toolkit.submit: ${sdata}`);
-                            if (sdata.includes('Run(')) {
-                                proc.kill();
-                                clearTimeout(timeout);
-                                let id = sdata.trim().slice(4, -1).split(',')[1].trim().slice(4);
-                                vscode.window.showInformationMessage(`Job submitted. Id: ${id}`);
-                                saveWorkspaceFile(`./userdata/jobs_history/${id}.json`, cfg);
-                                resolve('success');
-                            }
-                        });
-                        proc.stderr.on('data', (data) => {
-                            let sdata = String(data);
-                            outputChannel.appendLine('[CMD ERR] ' + sdata);
-                            console.error(`msra_intern_s_toolkit.submit: ${sdata}`);
-                        });
-                        proc.on('exit', (code) => {
                             clearTimeout(timeout);
-                            if (code != null) {
-                                showErrorMessageWithHelp(`Failed to submit the job. Unknown reason. code ${code}`);
-                                resolve('failed');
-                            }
-                            console.log(`msra_intern_s_toolkit.submit: Process exited with ${code}`);
-                        });
-                    }
-                    else resolve('failed');
+                            showErrorMessageWithHelp(`Failed to submit the job. SAS authentication failed.`);
+                            resolve1('failed');
+                        }
+                    });
+                    proc.stderr.on('data', (data) => {
+                        let sdata = String(data);
+                        outputChannel.append('[CMD ERR] ' + sdata);
+                        console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
+                        if (sdata.includes('not recognized') || sdata.includes('command not found')) {
+                            proc.kill();
+                            clearTimeout(timeout);
+                            showErrorMessageWithHelp(`Failed to submit the job. Azcopy not found.`);
+                            resolve1('failed');
+                        }
+                        else if (sdata.includes('Permission denied')) {
+                            proc.kill();
+                            clearTimeout(timeout);
+                            showErrorMessageWithHelp(`Failed to submit the job. Permission denied.`);
+                            resolve1('failed');
+                        }
+                    });
+                    proc.on('exit', (code) => {
+                        clearTimeout(timeout);
+                        if (code == 0) {
+                            progress.report({increment: 25});
+                            resolve1('success');
+                        } else if (code != null) {
+                            vscode.window.showErrorMessage ('azcopy failed with exit code ' + code);
+                            resolve1('failed');
+                        }
+                        else resolve1('failed');
+                    });
                 });
+
+                // Second step: submit the job
+                if (status1 != 'success') {
+                    resolve(status1);
+                    return;
+                }
+
+                let status2 = await new Promise<string> (resolve2 => {
+                    outputChannel.appendLine(`[CMD] > conda run -n msra-intern-s-toolkit python ${globalPath('script/submit_jobs/submit.py')} --config ${workspacePath(cfgPath)}`);
+                    let proc = cp.spawn('conda', ['run', '-n', 'msra-intern-s-toolkit', 'python', globalPath('script/submit_jobs/submit.py'), '--config', workspacePath(cfgPath)], {shell: true});
+                    progress.report({increment: 25});
+                    let timeout = setTimeout(() => {
+                        proc.kill();
+                        showErrorMessageWithHelp(`Failed to submit the job. Command timeout.`);
+                        resolve2('timeout');
+                    }, 60000);
+                    proc.stdout.on('data', (data) => {
+                        let sdata = String(data);
+                        outputChannel.appendLine('[CMD OUT] ' + sdata);
+                        console.log(`msra_intern_s_toolkit.submit: ${sdata}`);
+                        if (sdata.includes('Run(')) {
+                            proc.kill();
+                            clearTimeout(timeout);
+                            let id = sdata.trim().slice(4, -1).split(',')[1].trim().slice(4);
+                            vscode.window.showInformationMessage(`Job submitted. Id: ${id}`);
+                            progress.report({increment: 25});
+                            saveWorkspaceFile(`./userdata/jobs_history/${id}.json`, JSON.stringify(cfg, null, 4));
+                            resolve2('success');
+                        }
+                    });
+                    proc.stderr.on('data', (data) => {
+                        let sdata = String(data);
+                        outputChannel.appendLine('[CMD ERR] ' + sdata);
+                        console.error(`msra_intern_s_toolkit.submit: ${sdata}`);
+                    });
+                    proc.on('exit', (code) => {
+                        clearTimeout(timeout);
+                        if (code != null) {
+                            showErrorMessageWithHelp(`Failed to submit the job. Unknown reason. code ${code}`);
+                            resolve2('failed');
+                        }
+                        console.log(`msra_intern_s_toolkit.submit: Process exited with ${code}`);
+                    });
+                });
+
+                resolve(status2);
             });
-        }))(JSON.stringify(config, null, 4))
+        }))(config)
     );
 }
 

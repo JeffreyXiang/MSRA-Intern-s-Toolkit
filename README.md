@@ -13,6 +13,7 @@ This extension provide you a intuitive and interactive way to deal with these an
 * Install Azure CLI with version higher than 2.32. Latest: [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 * * You can check your Azure CLI version with: `az version --output table`.
 * Install the Azure CLI ssh extension: `az extension add --name ssh`.
+* Make sure AzCopy is installed. Learn how to install it from [Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Learn](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10).
 * Only for Windows machine, to use GCR tunnels, make sure Powershell and OpenSSH is installed. Learn how to install them from [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) and [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui).
 
 ## Usage
@@ -52,6 +53,7 @@ Storage zone sets the working directory where your script will run. It must be s
 * **Account:** Storage account name in Azure Storage.
 * **Acount Key:** Key of your account (second row in properties).
 * **Countainer:** Name of your blob container.
+* **SAS Token:** The SAS token of your blob container. Right click the container to generate one.
 
 **Environment**
 
@@ -64,7 +66,6 @@ Storage zone sets the working directory where your script will run. It must be s
 * **Work Dir:** Working directory related to the root of yout blob container (container name is excluded).
 * **Copy Data:** Whether to copy the dataset from blob container to the node before running the experiment. Note that although the specified working directory on the blob container will be mounted to the node, directly reading it with file system may be extremely slow. So, I recommend to do data transfer beforehand using `azcopy` which is specially designed for high speed massive data transfer from Azure Storage.
 * **Sync Code:** Whether to sync the code from working directory to blob container before running the experiment. You can also only sync the code without submitting the job by pressing **Synchorize** button.
-* **SAS Token:** Shows if either **Copy Data** or **Sync Code** is checked. The SAS token of your blob container. Right click the container to generate one.
 * **Data Dir:** Shows if **Copy Data** is checked. Data directory related to the root of yout blob container (container name is excluded).
 * **Data Subdur:** Shows if **Copy Data** is checked. Subdirectories of data directory to be copied. Use ';' to seperate multiple subdirectories.
 * **Ignore Dir:** Shows if **Sync Code** is checked. Directories to be ignored when syncing. Use ';' to seperate multiple directories.
@@ -108,12 +109,25 @@ Host tunnel
 
 * This extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. This can be addressed with any of the following two actions:
 * * Click **Yes** when a message advices you to setup conda env (at start or after the error message).
-* * Run the following command: 
+* * Run the following command:
+
 ```
 conda create -n msra-intern-s-toolkit python=3.8
 conda activate msra-intern-s-toolkit
 pip install azureml-sdk azure-cli azureml-contrib-aisc
 ```
+
+**Azcopy not found.**
+
+* Have you installed azcopy? See [Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Learn](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10).
+
+**Permission denied.**
+
+* Make sure you have the permission to access the working directory.
+
+**SAS authentication failed.**
+
+* Your SAS token may be expired or not have the proper permission (e.g., read / write) to the blob container.
 
 ### GCR Tunnel
 
@@ -140,6 +154,7 @@ pip install azureml-sdk azure-cli azureml-contrib-aisc
 * [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 * [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
 * [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui)
+* [Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Learn](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10)
 * [GCR Bastion - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/6627/GCR-Bastion)
 * [SSH Key Management - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management)
 * [AML Kubernetes (aka AML K8s)(aka ITP) Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/3438/AML-Kubernetes-(aka-AML-K8s)(aka-ITP)-Overview)

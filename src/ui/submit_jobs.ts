@@ -48,14 +48,15 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
     }
 
     public setContent(config: job.JobConfig) {
+        let msg_config = JSON.parse(JSON.stringify(config));
         if (this.view) {
-            if (typeof config.environment.setup_script !== 'string') {
-                config.environment.setup_script = config.environment.setup_script.join('\n');
+            if (typeof msg_config.environment.setup_script !== 'string') {
+                msg_config.environment.setup_script = msg_config.environment.setup_script.join('\n');
             }
-            if (typeof config.experiment.script !== 'string') {
-                config.experiment.script = config.experiment.script.join('\n');
+            if (typeof msg_config.experiment.script !== 'string') {
+                msg_config.experiment.script = msg_config.experiment.script.join('\n');
             }
-            let message = {command: 'setContent', params: config};
+            let message = {command: 'setContent', params: msg_config};
             this.view.webview.postMessage(message);
             // console.log('msra_intern_s_toolkit.ui.SubmitJobsView: Send ' + JSON.stringify(message));
         }

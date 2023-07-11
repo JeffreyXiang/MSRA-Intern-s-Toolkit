@@ -85,7 +85,6 @@
         function update_checkbox_hiddens() {
             let copy_data = document.getElementById('copy_data').checked;
             let sync_code = document.getElementById('sync_code').checked;
-            document.getElementsByClassName('sas_token_')[0].style.display = (sync_code || copy_data) ? null : 'none';
             document.getElementsByClassName('data_dir_')[0].style.display = copy_data ? null : 'none';
             document.getElementsByClassName('data_subdir_')[0].style.display = copy_data ? null : 'none';
             document.getElementsByClassName('ignore_dir_')[0].style.display = sync_code ? null : 'none';
@@ -105,13 +104,13 @@
                     document.getElementById('account_name').value    = params.storage.account_name;
                     document.getElementById('account_key').value     = params.storage.account_key;
                     document.getElementById('container_name').value  = params.storage.container_name;
+                    document.getElementById('sas_token').value       = params.storage.sas_token;
                     document.getElementById('docker_image').value    = params.environment.docker_image;
                     document.getElementById('setup_script').value    = params.environment.setup_script;
                     document.getElementById('name').value            = params.experiment.name;
                     document.getElementById('workdir').value         = params.experiment.workdir;
                     document.getElementById('copy_data').checked     = params.experiment.copy_data;
                     document.getElementById('sync_code').checked     = params.experiment.sync_code;
-                    document.getElementById('sas_token').value       = params.experiment.sas_token;
                     document.getElementById('data_dir').value        = params.experiment.data_dir;
                     document.getElementById('data_subdir').value     = params.experiment.data_subdir;
                     document.getElementById('ignore_dir').value     = params.experiment.ignore_dir;
@@ -167,6 +166,7 @@
     <div class="item"><div class="label">Account:</div><input id="account_name" type="text" onchange="config_changed('storage', 'account_name')"></div>
     <div class="item"><div class="label">Account Key:</div><input id="account_key" type="text" onchange="config_changed('storage', 'account_key')"></div>
     <div class="item"><div class="label">Container:</div><input id="container_name" type="text" onchange="config_changed('storage', 'container_name')"></div>
+    <div class="item"><div class="label">SAS Token:</div><input id="sas_token" type="text" onchange="config_changed('storage', 'sas_token')"></div>
     <div class="groupbar">Environment</div>
     <div class="item"><div class="label">Docker Image:</div><input id="docker_image" type="text" onchange="config_changed('environment', 'docker_image')"></div>
     <div class="item"><div class="label">Setup Script:</div><textarea id="setup_script" type="text" onchange="config_changed('environment', 'setup_script')"></textarea></div>
@@ -175,7 +175,6 @@
     <div class="item"><div class="label">Work Dir:</div><input id="workdir" type="text" onchange="config_changed('experiment', 'workdir')"></div>
     <div class="item" style="display: inline-flex;"><div class="label">Copy Data:</div><input id="copy_data" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'copy_data')"></div>
     <div class="item" style="display: inline-flex;"><div class="label">Sync Code:</div><input id="sync_code" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'sync_code')"></div>
-    <div class="item sas_token_"><div class="label">SAS Token:</div><input id="sas_token" type="text" onchange="config_changed('experiment', 'sas_token')"></div>
     <div class="item data_dir_"><div class="label">Data Dir:</div><input id="data_dir" type="text" onchange="config_changed('experiment', 'data_dir')"></div>
     <div class="item data_subdir_"><div class="label">Data Subdir:</div><input id="data_subdir" type="text" onchange="config_changed('experiment', 'data_subdir')"></div>
     <div class="item ignore_dir_"><div class="label">Ignore Dir:</div><input id="ignore_dir" type="text" onchange="config_changed('experiment', 'ignore_dir')"></div>
