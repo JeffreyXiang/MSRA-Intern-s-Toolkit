@@ -5,5 +5,6 @@ node_modules
 .vscode/
 .msra_intern_s_toolkit/
 *.vsix
+__pycache__/
 
 userdata/

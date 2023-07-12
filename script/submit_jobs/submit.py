@@ -46,8 +46,8 @@ ds = Datastore.register_azure_blob_container(
 data_ref = ds.path(config['experiment']['workdir']).as_mount()
 
 # Experiment
-source_directory = os.path.join(os.path.dirname(__file__), "entry-script")
-entry_script = "./entry-script.py"
+source_directory = os.path.join(os.path.dirname(__file__), "entry_script")
+entry_script = "./entry_script.py"
 
 arguments = [
     "--workdir", str(data_ref),
