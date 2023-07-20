@@ -8,8 +8,6 @@ from azureml.core import ScriptRunConfig
 from azureml.core.compute import ComputeTarget
 from azureml.core.runconfig import PyTorchConfiguration
 from azureml.core.authentication import AzureCliAuthentication
-from azureml.contrib.aisc.aiscrunconfig import AISuperComputerConfiguration
-from k8s_runconfig import K8sComputeConfiguration
 
 print(f"The azureml-sdk version is {azureml.core.VERSION}")
 
@@ -69,6 +67,7 @@ src = ScriptRunConfig(
 # Set instance and storage
 src.run_config.data_references = {data_ref.data_reference_name: data_ref.to_config()}
 if not is_itp:
+    from azureml.contrib.aisc.aiscrunconfig import AISuperComputerConfiguration
     src.run_config.target = "aisupercomputer"
     src.run_config.aisupercomputer = AISuperComputerConfiguration()
     src.run_config.aisupercomputer.instance_type = config['cluster']['instance_type']
@@ -85,6 +84,8 @@ if not is_itp:
         f"virtualclusters/{config['cluster']['virtual_cluster']}"
     )
 else:
+    from azureml.contrib.core.k8srunconfig import K8sComputeConfiguration
+    src.run_config.target = config['cluster']['virtual_cluster']
     src.run_config.cmk8scompute = K8sComputeConfiguration()
     src.run_config.cmk8scompute.configuration = {
         'enable_ssh': True,

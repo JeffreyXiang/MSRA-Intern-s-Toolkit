@@ -27,6 +27,7 @@ First of all, as the welcome says, login to Azure with the **Click to login** bu
 conda create -n msra-intern-s-toolkit python=3.8
 conda activate msra-intern-s-toolkit
 pip install azureml-sdk azure-cli azureml-contrib-aisc
+pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml-contrib-k8s
 ```
 * Fill the form and press **Submit**. If everything is ok, you shall get a success message with job id after a while.
 * If you want to load the config of submitted jobs. Press **Load** and select it in submission history.
@@ -115,6 +116,7 @@ Host tunnel
 conda create -n msra-intern-s-toolkit python=3.8
 conda activate msra-intern-s-toolkit
 pip install azureml-sdk azure-cli azureml-contrib-aisc
+pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml-contrib-k8s
 ```
 
 **Azcopy not found.**
