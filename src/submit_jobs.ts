@@ -42,28 +42,38 @@ export class JobConfig {
     experiment: ExperimentConfig = new ExperimentConfig();
     
     constructor(init?: any) {
-        if (init.cluster.virtual_cluster !== undefined) this.cluster.virtual_cluster = init.cluster.virtual_cluster;
-        if (init.cluster.instance_type !== undefined) this.cluster.instance_type = init.cluster.instance_type;
-        if (init.cluster.node_count !== undefined) this.cluster.node_count = init.cluster.node_count;
-        if (init.cluster.sla_tier !== undefined) this.cluster.sla_tier = init.cluster.sla_tier;
+        if (init === undefined) return;
 
-        if (init.storage.datastore_name !== undefined) this.storage.datastore_name = init.storage.datastore_name;
-        if (init.storage.container_name !== undefined) this.storage.container_name = init.storage.container_name;
-        if (init.storage.account_name !== undefined) this.storage.account_name = init.storage.account_name;
-        if (init.storage.account_key !== undefined) this.storage.account_key = init.storage.account_key;
-        if (init.storage.sas_token !== undefined) this.storage.sas_token = init.storage.sas_token;
+        if (init.cluster !== undefined) {
+            if (init.cluster.virtual_cluster !== undefined) this.cluster.virtual_cluster = init.cluster.virtual_cluster;
+            if (init.cluster.instance_type !== undefined) this.cluster.instance_type = init.cluster.instance_type;
+            if (init.cluster.node_count !== undefined) this.cluster.node_count = init.cluster.node_count;
+            if (init.cluster.sla_tier !== undefined) this.cluster.sla_tier = init.cluster.sla_tier;
+        }
 
-        if (init.environment.docker_image !== undefined) this.environment.docker_image = init.environment.docker_image;
-        if (init.environment.setup_script !== undefined) this.environment.setup_script = init.environment.setup_script;
+        if (init.storage !== undefined) {
+            if (init.storage.datastore_name !== undefined) this.storage.datastore_name = init.storage.datastore_name;
+            if (init.storage.container_name !== undefined) this.storage.container_name = init.storage.container_name;
+            if (init.storage.account_name !== undefined) this.storage.account_name = init.storage.account_name;
+            if (init.storage.account_key !== undefined) this.storage.account_key = init.storage.account_key;
+            if (init.storage.sas_token !== undefined) this.storage.sas_token = init.storage.sas_token;
+        }
 
-        if (init.experiment.name !== undefined) this.experiment.name = init.experiment.name;
-        if (init.experiment.workdir !== undefined) this.experiment.workdir = init.experiment.workdir;
-        if (init.experiment.copy_data !== undefined) this.experiment.copy_data = init.experiment.copy_data;
-        if (init.experiment.sync_code !== undefined) this.experiment.sync_code = init.experiment.sync_code;
-        if (init.experiment.data_dir !== undefined) this.experiment.data_dir = init.experiment.data_dir;
-        if (init.experiment.data_subdir !== undefined) this.experiment.data_subdir = init.experiment.data_subdir;
-        if (init.experiment.ignore_dir !== undefined) this.experiment.ignore_dir = init.experiment.ignore_dir;
-        if (init.experiment.script !== undefined) this.experiment.script = init.experiment.script;
+        if (init.environment !== undefined) {
+            if (init.environment.docker_image !== undefined) this.environment.docker_image = init.environment.docker_image;
+            if (init.environment.setup_script !== undefined) this.environment.setup_script = init.environment.setup_script;
+        }
+
+        if (init.experiment !== undefined) {
+            if (init.experiment.name !== undefined) this.experiment.name = init.experiment.name;
+            if (init.experiment.workdir !== undefined) this.experiment.workdir = init.experiment.workdir;
+            if (init.experiment.copy_data !== undefined) this.experiment.copy_data = init.experiment.copy_data;
+            if (init.experiment.sync_code !== undefined) this.experiment.sync_code = init.experiment.sync_code;
+            if (init.experiment.data_dir !== undefined) this.experiment.data_dir = init.experiment.data_dir;
+            if (init.experiment.data_subdir !== undefined) this.experiment.data_subdir = init.experiment.data_subdir;
+            if (init.experiment.ignore_dir !== undefined) this.experiment.ignore_dir = init.experiment.ignore_dir;
+            if (init.experiment.script !== undefined) this.experiment.script = init.experiment.script;
+        }
 
         // v1.2 convertion
         if (typeof this.environment.setup_script === 'string') this.environment.setup_script = this.environment.setup_script.split('\n');
