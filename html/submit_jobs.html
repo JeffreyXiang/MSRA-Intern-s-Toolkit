@@ -108,6 +108,7 @@
                     document.getElementById('docker_image').value    = params.environment.docker_image;
                     document.getElementById('setup_script').value    = params.environment.setup_script;
                     document.getElementById('name').value            = params.experiment.name;
+                    document.getElementById('job_name').value        = params.experiment.job_name;
                     document.getElementById('workdir').value         = params.experiment.workdir;
                     document.getElementById('copy_data').checked     = params.experiment.copy_data;
                     document.getElementById('sync_code').checked     = params.experiment.sync_code;
@@ -172,6 +173,7 @@
     <div class="item"><div class="label">Setup Script:</div><textarea id="setup_script" type="text" onchange="config_changed('environment', 'setup_script')"></textarea></div>
     <div class="groupbar">Experiment</div>
     <div class="item"><div class="label">Name:</div><input id="name" type="text" onchange="config_changed('experiment', 'name')"></div>
+    <div class="item"><div class="label">Job Name:</div><input id="job_name" type="text" onchange="config_changed('experiment', 'job_name')"></div>
     <div class="item"><div class="label">Work Dir:</div><input id="workdir" type="text" onchange="config_changed('experiment', 'workdir')"></div>
     <div class="item" style="display: inline-flex;"><div class="label">Copy Data:</div><input id="copy_data" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'copy_data')"></div>
     <div class="item" style="display: inline-flex;"><div class="label">Sync Code:</div><input id="sync_code" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'sync_code')"></div>

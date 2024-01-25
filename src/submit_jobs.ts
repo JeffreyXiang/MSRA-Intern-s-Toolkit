@@ -26,6 +26,7 @@ class EnvironmentConfig {
 
 class ExperimentConfig {
     name: string = ''
+    job_name: string = ''
     workdir: string = ''
     copy_data: boolean = true
     sync_code: boolean = true
@@ -66,6 +67,7 @@ export class JobConfig {
 
         if (init.experiment !== undefined) {
             if (init.experiment.name !== undefined) this.experiment.name = init.experiment.name;
+            if (init.experiment.job_name !== undefined) this.experiment.job_name = init.experiment.job_name;
             if (init.experiment.workdir !== undefined) this.experiment.workdir = init.experiment.workdir;
             if (init.experiment.copy_data !== undefined) this.experiment.copy_data = init.experiment.copy_data;
             if (init.experiment.sync_code !== undefined) this.experiment.sync_code = init.experiment.sync_code;

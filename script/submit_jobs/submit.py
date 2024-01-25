@@ -62,6 +62,7 @@ src = ScriptRunConfig(
         Environment.get(workspace=ws, name=config['environment']['docker_image']),
     distributed_job_config=None if config['cluster']['node_count'] == 1 else
         PyTorchConfiguration(node_count=config['cluster']['node_count']),
+    max_run_duration_seconds=14*24*60*60,
 )
 
 # Set instance and storage
@@ -71,6 +72,7 @@ if not is_itp:
     src.run_config.target = "aisupercomputer"
     src.run_config.aisupercomputer = AISuperComputerConfiguration()
     src.run_config.aisupercomputer.instance_type = config['cluster']['instance_type']
+    src.run_config.aisupercomputer.priority = "High"
     src.run_config.aisupercomputer.sla_tier = config['cluster']['sla_tier']
     src.run_config.aisupercomputer.image_version= config['environment']['docker_image']
     src.run_config.node_count = config['cluster']['node_count']
@@ -96,4 +98,6 @@ else:
 # Submit
 experiment = Experiment(ws, name=config['experiment']['name'])
 run = experiment.submit(src)
+if config['experiment']['job_name'] != "":
+    run.display_name = config['experiment']['job_name']
 pprint.pprint(run)

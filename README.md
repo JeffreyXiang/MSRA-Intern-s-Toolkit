@@ -64,6 +64,7 @@ Storage zone sets the working directory where your script will run. It must be s
 **Experiment**
 
 * **Name:** Arbitrary name for your experiment.
+* **Job Name:** Arbitrary name for your job. This will be shown in the job list.
 * **Work Dir:** Working directory related to the root of yout blob container (container name is excluded).
 * **Copy Data:** Whether to copy the dataset from blob container to the node before running the experiment. Note that although the specified working directory on the blob container will be mounted to the node, directly reading it with file system may be extremely slow. So, I recommend to do data transfer beforehand using `azcopy` which is specially designed for high speed massive data transfer from Azure Storage.
 * **Sync Code:** Whether to sync the code from working directory to blob container before running the experiment. You can also only sync the code without submitting the job by pressing **Synchorize** button.
