@@ -75,7 +75,7 @@ Storage zone sets the working directory where your script will run. It must be s
 
 ### GCR Tunnel
 
-Only available under local Windows machine.
+Only available under local Windows and Mac machine.
 * Press **Add** button to setup a new tunnel.
 * Input sandbox ID and port as guided. Note that:
 * * Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.
@@ -88,7 +88,7 @@ Host tunnel
     Port yourport
     User DOMAIN.youralias
     StrictHostKeyChecking=No
-    UserKnownHostsFile=\\.\NUL
+    UserKnownHostsFile=\\.\NUL    # or /dev/null for Mac
 ```
 
 ## Troubleshooting

@@ -45,9 +45,9 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
         }
     }
 
-    public notWin() {
+    public unsupported() {
         if (this.view) {
-            let message = {command: 'notWin'};
+            let message = {command: 'unsupported'};
             this.view.webview.postMessage(message);
         }
     }

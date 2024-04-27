@@ -141,8 +141,8 @@
                     }
                     document.getElementById("list").innerHTML = html;
                     break;
-                case 'notWin':
-                    document.body.innerHTML = '<div style="margin: 10px;">GCR Tunnel is only available on Windows.</div>';
+                case 'unsupported':
+                    document.body.innerHTML = '<div style="margin: 10px;">GCR Tunnel is currently supported only on Windows and MacOS.</div>';
                     break;
                 case 'update':
                     document.getElementsByClassName('item')[params.idx].getElementsByClassName('state')[0].innerHTML = (

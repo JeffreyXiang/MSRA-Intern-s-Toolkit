@@ -8,6 +8,8 @@ var azureStatusBar: vscode.StatusBarItem;
 export var domain: string;
 export var alias: string;
 export var isLoggedIn: boolean | undefined = undefined;
+var bearerToken: string | undefined = undefined;
+var tokenExpireTime: number | undefined = undefined;
 
 function checkAccount() {
     outputChannel.appendLine('[CMD] > az account show');
@@ -123,6 +125,18 @@ function logout() {
             azureStatusBar.text = '$(msra-intern-s-toolkit) Click to login';
         }
     })
+}
+
+export function getBearerToken() {
+    if (bearerToken == undefined || tokenExpireTime == undefined || Date.now() > tokenExpireTime) {
+        outputChannel.appendLine('[CMD] > az account get-access-token');
+        let stdout = cp.execSync('az account get-access-token').toString();
+        outputChannel.appendLine('[CMD OUT] ' + stdout);
+        let token = JSON.parse(stdout);
+        bearerToken = token.accessToken;
+        tokenExpireTime = token.expires_on;
+    }
+    return bearerToken;
 }
 
 export function init() {

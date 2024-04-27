@@ -3,7 +3,7 @@
 	"displayName": "MSRA Intern's Toolkit",
 	"description": "",
 	"icon": "color-icon.png",
-	"version": "1.3.2",
+	"version": "1.3.3",
 	"publisher": "jianfeng-xiang",
 	"author": {
 		"name": "Jianfeng Xiang",
@@ -48,6 +48,21 @@
 				"title": "MSRA Intern's Toolkit: Close GCR Tunnel"
 			}
 		],
+		"configuration": {
+			"title": "MSRA Intern's Toolkit",
+			"properties": {
+				"msra_intern_s_toolkit.gcrTunnel.autoReconnection.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Whether to automatically reconnect to the GCR Tunnel when unexpectedly disconnected."
+				},
+				"msra_intern_s_toolkit.gcrTunnel.autoReconnection.maxTrials": {
+					"type": "number",
+					"default": 3,
+					"description": "The maximum number of trials to reconnect to the GCR Tunnel when unexpectedly disconnected."
+				}
+			}
+		},
 		"viewsContainers": {
 			"activitybar": [
 				{

@@ -72,9 +72,24 @@ if ($SANDBOXNUM -ge 1400 -and $SANDBOXNUM -le 1767) {
    Write-Output $COMMAND
    Invoke-Expression $COMMAND
 }
+if ($SANDBOXNUM -ge 3001 -and $SANDBOXNUM -le 3068) { 
+   az account set --subscription $EX2
+   $COMMAND = "az network bastion $BASTIONCOMMAND --subscription $EX2 --name $BAST3 --resource-group $RG3 --target-resource-id /subscriptions/$EX2/resourceGroups/$RG3/providers/Microsoft.Compute/virtualMachines/GCRAZGDL$SANDBOXNUM $BASTIONPARAMS"
+   Write-Output $COMMAND
+   Invoke-Expression $COMMAND
+}
+if ($SANDBOXNUM -ge 4001 -and $SANDBOXNUM -le 4020) { 
+   az account set --subscription $EX2
+   $COMMAND = "az network bastion $BASTIONCOMMAND --subscription $EX2 --name $BAST3 --resource-group $RG3 --target-resource-id /subscriptions/$EX2/resourceGroups/$RG3/providers/Microsoft.Compute/virtualMachines/GCRAZGDL$SANDBOXNUM $BASTIONPARAMS"
+   Write-Output $COMMAND
+   Invoke-Expression $COMMAND
+}
 if ($SANDBOXNUM -ge 2000 -and $SANDBOXNUM -le 2999) {
    az account set --subscription $EX3
    $COMMAND = "az network bastion $BASTIONCOMMAND --subscription $EX3 --name $BAST1 --resource-group $RG1 --target-resource-id /subscriptions/$EX3/resourceGroups/$RG1/providers/Microsoft.Compute/virtualMachines/GCRAZGDL$SANDBOXNUM $BASTIONPARAMS"
    Write-Output $COMMAND
    Invoke-Expression $COMMAND
 }
+
+Write-Host "Done with code $LASTEXITCODE"
+Exit $LASTEXITCODE

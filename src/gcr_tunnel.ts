@@ -3,8 +3,10 @@ import * as cp from 'child_process'
 import * as process from 'process'
 import {vscodeContext, outputChannel} from './extension'
 import * as az from './azure';
-import {globalPath, pidIsRunning, findNetProcess, getFile, saveFile, exists, showErrorMessageWithHelp} from './utils'
+import {globalPath, pidIsRunning, findNetProcessWin, findNetProcessMac, NetProtocol, NetState, getFile, saveFile, exists, showErrorMessageWithHelp} from './utils'
 import {GCRTunnelView} from './ui/gcr_tunnel'
+
+var supportedOS = ['win32', 'darwin'];
 
 /* Bastion Tunnel */
 
@@ -25,6 +27,7 @@ export class Tunnel {
 	sshPort: number;
 	procID?: number;
 	sshProcID?: number;
+    retried: number = 0;
 
 	constructor(setting: TunnelSetting) {
 		this.sandboxID = setting.sandboxID;
@@ -137,12 +140,37 @@ export async function openTunnel(i?: number) {
     }
 }
 
+function reconnectTunnel(i: number, maxTrials: number) {
+    if (tunnels[i].retried < maxTrials) {
+        tunnels[i].retried++;
+        openTunnel(i);
+    }
+    else {
+        tunnels[i].retried = 0;
+        vscode.window.showErrorMessage(`Unable to reconnect GCR tunnel${i}. Check your network and try again.`);
+    }
+}
+
 function openBastionTunnel(i: number) {
     tunnels[i].state = 'bastion_opening';
     update(i);
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`)
-    outputChannel.appendLine(`[CMD] > pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`)
-    let proc = cp.spawn('pwsh.exe', [globalPath('script/gcr_tunnel/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', `${az.domain}.${az.alias}`, '-port', `${tunnels[i].port}`]);
+    let proc : cp.ChildProcessWithoutNullStreams;
+    switch (process.platform) {
+        case 'win32':
+            console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`);
+            outputChannel.appendLine(`[CMD] > pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`);
+            proc = cp.spawn('pwsh.exe', [globalPath('script/gcr_tunnel/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', `${az.domain}.${az.alias}`, '-port', `${tunnels[i].port}`]);
+            break;
+        case 'darwin':
+            console.log(`msra_intern_s_toolkit.openTunnel: Exec bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${az.domain}.${az.alias}`} -p ${tunnels[i].port}`);
+            outputChannel.appendLine(`[CMD] > bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${az.domain}.${az.alias}`} -p ${tunnels[i].port}`);
+            proc = cp.spawn('bash', [globalPath('script/gcr_tunnel/gdl.sh'), '-t', '-n', `${tunnels[i].sandboxID}`, '-a', `${az.domain}.${az.alias}`, '-p', `${tunnels[i].port}`]);
+            break;
+        default:
+            showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Platform not supported.`);
+            tunnels[i].state = 'bastion_opening_failed';
+            return;
+    }
     let timeout = setTimeout(((i) => () => {
         proc.kill();
         showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Command timeout.`);
@@ -202,9 +230,10 @@ function openBastionTunnel(i: number) {
 function openSSHTunnel(i: number) {
     tunnels[i].state = 'ssh_opening';
     update(i);
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=\\\\.\\NUL`)
-    outputChannel.appendLine(`[CMD] > ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=\\\\.\\NUL`);
-    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${az.domain}.${az.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=\\\\.\\NUL'], {detached: true, stdio: 'ignore'});
+    let ignoreHostFile = process.platform == 'win32' ? '\\\\.\\NUL' : '/dev/null';
+    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
+    outputChannel.appendLine(`[CMD] > ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
+    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${az.domain}.${az.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', `UserKnownHostsFile=${ignoreHostFile}`], {detached: true, stdio: 'ignore'});
     proc.unref();
     proc.on('exit', (code) => {
         if (tunnels[i].state == 'ssh_opening') {
@@ -242,44 +271,67 @@ function polling(){
         else if (tunnels[i].state == 'opened') {
             let bastionExists = pidIsRunning(tunnels[i].procID!);
             let sshExists = pidIsRunning(tunnels[i].sshProcID!);
+            let reconectionEnabled = vscode.workspace.getConfiguration('msra_intern_s_toolkit.gcrTunnel.autoReconnection').get<boolean>('enabled');
+            let maxTrials = vscode.workspace.getConfiguration('msra_intern_s_toolkit.gcrTunnel.autoReconnection').get<number>('maxTrials') ?? 0;
+
             if (!sshExists) {
                 if (bastionExists) process.kill(tunnels[i].procID!);
                 tunnels[i].state = 'closed';
                 update(i);
-                vscode.window.showErrorMessage(`GCR tunnel${i} accidentally closed. Reopen?`, 'Yes', 'No').then((choice) => {
-                    if (choice == 'Yes') {
-                        openTunnel(i);
-                    }
-                });
+                if (reconectionEnabled) {
+                    vscode.window.showInformationMessage(`GCR tunnel${i} accidentally closed. Reconnecting...`);
+                    reconnectTunnel(i, maxTrials);
+                } else {
+                    vscode.window.showErrorMessage(`GCR tunnel${i} accidentally closed. Reopen?`, 'Yes', 'No').then((choice) => {
+                        if (choice == 'Yes') {
+                            openTunnel(i);
+                        }
+                    });
+                    vscode.window.showInformationMessage(`GCR tunnel auto reconnection can be enabled in settings.`);
+                }
             }
         }
         else {
-            Promise.all([
+            Promise.all(process.platform == 'win32' ? [
                 // find bastion process
-                findNetProcess({
-                    proto: 'TCP',
+                findNetProcessWin({
+                    proto: NetProtocol.TCP,
                     localAddr: '127.0.0.1',
                     localPort: tunnels[i].port,
-                    foreignAddr: '0.0.0.0',
-                    foreignPort: 0,
-                    state: 'LISTENING',
+                    state: NetState.LISTEN,
                     imageName: 'python.exe'
                 }),
                 // find ssh process
-                findNetProcess({
-                    proto: 'TCP',
+                findNetProcessWin({
+                    proto: NetProtocol.TCP,
                     localAddr: '127.0.0.1',
                     localPort: tunnels[i].sshPort,
-                    foreignAddr: '0.0.0.0',
-                    foreignPort: 0,
-                    state: 'LISTENING',
+                    state: NetState.LISTEN,
                     imageName: 'ssh.exe'
+                })
+            ] : [
+                // find bastion process
+                findNetProcessMac({
+                    proto: NetProtocol.TCP,
+                    localAddr: '127.0.0.1',
+                    localPort: tunnels[i].port,
+                    state: NetState.LISTEN,
+                    imageName: 'Python'
+                }),
+                // find ssh process
+                findNetProcessMac({
+                    proto: NetProtocol.TCP,
+                    localAddr: '127.0.0.1',
+                    localPort: tunnels[i].port,
+                    state: NetState.LISTEN,
+                    imageName: 'ssh'
                 })
             ]).then((pids) => {
                 let bastionExists = (pids[0].length != 0);
                 let sshExists = (pids[1].length != 0);
                 let bastionPID = pids[0][0];
                 let sshPID = pids[1][0];
+                let maxTrials = vscode.workspace.getConfiguration('msra_intern_s_toolkit.gcrTunnel.autoReconnection').get<number>('maxTrials') ?? 0;
 
                 tunnels[i].procID = bastionPID;
                 tunnels[i].sshProcID = sshPID;
@@ -293,20 +345,11 @@ function polling(){
                     }
                     else if (bastionExists && sshExists) {
                         tunnels[i].state = 'opened';
+                        tunnels[i].retried = 0;
                         vscode.window.showInformationMessage(`GCR tunnel${i} opened.`);
                     }
                     update(i);
                 }
-                // else if (tunnels[i].state == 'closed') {
-                //     if (bastionExists && !sshExists) {
-                //         process.kill(bastionPID);
-                //     }
-                //     else if (bastionExists && sshExists){
-                //         tunnels[i].state = 'opened';
-                //         vscode.window.showInformationMessage(`GCR tunnel${i} opened.`);
-                //         update(i);
-                //     }
-                // }
                 else if (tunnels[i].state == 'preopen_check') {
                     if (bastionExists && !sshExists) {
                         process.kill(bastionPID);
@@ -314,6 +357,7 @@ function polling(){
                     }
                     else if (bastionExists && sshExists){
                         tunnels[i].state = 'opened';
+                        tunnels[i].retried = 0;
                         vscode.window.showInformationMessage(`GCR tunnel${i} opened.`);
                         update(i);
                     }
@@ -321,18 +365,6 @@ function polling(){
                         openBastionTunnel(i);
                     }
                 }
-                // else if (tunnels[i].state == 'opened') {
-                //     if (!sshExists) {
-                //         if (bastionExists) process.kill(bastionPID);
-                //         tunnels[i].state = 'closed';
-                //         update(i);
-                //         vscode.window.showErrorMessage(`GCR tunnel${i} accidentally closed. Reopen?`, 'Yes', 'No').then((choice) => {
-                //             if (choice == 'Yes') {
-                //                 openTunnel(i);
-                //             }
-                //         });
-                //     }
-                // }
                 else if (tunnels[i].state == 'bastion_opening') {
                     if (bastionExists) {
                         tunnels[i].state = 'bastion_opened';
@@ -343,6 +375,9 @@ function polling(){
                 else if (tunnels[i].state == 'bastion_opening_failed') {
                     tunnels[i].state = 'closed';
                     update(i);
+                    if (tunnels[i].retried > 0) {   // In retrial
+                        reconnectTunnel(i, maxTrials);
+                    }
                 }
                 else if (tunnels[i].state == 'bastion_opened') {
                     openSSHTunnel(i);
@@ -350,6 +385,7 @@ function polling(){
                 else if (tunnels[i].state == 'ssh_opening') {
                     if (sshExists) {
                         tunnels[i].state = 'opened';
+                        tunnels[i].retried = 0;
                         update(i);
                         vscode.window.showInformationMessage(`GCR tunnel${i} opened.`);
                     }
@@ -357,6 +393,9 @@ function polling(){
                 else if (tunnels[i].state == 'ssh_opening_failed') {
                     tunnels[i].state = 'closed';
                     update(i);
+                    if (tunnels[i].retried > 0) {   // In retrial
+                        reconnectTunnel(i, maxTrials);
+                    }
                 }
                 else if (tunnels[i].state == 'closing') {
                     tunnels[i].state = 'closed';
@@ -377,10 +416,10 @@ function update(i: number) {
 
 export function init() {
     outputChannel.appendLine('[INFO] Initializing GCR tunnel module...');
-    let isWin = process.platform === "win32";
+    let isSupported = supportedOS.includes(process.platform);
     outputChannel.appendLine(`[INFO] Platform: ${process.platform}`);
 
-    if (isWin) {
+    if (isSupported) {
         vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.addGCRTunnel', () => {addTunnel()}));
         vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.deleteGCRTunnel', () => {deleteTunnel()}));
         vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.openGCRTunnel', () => {openTunnel()}));
@@ -398,7 +437,7 @@ export function init() {
         {webviewOptions: {retainContextWhenHidden: true}}
     ));
 
-    if (isWin) {
+    if (isSupported) {
         setInterval(() => {
             if (az.isLoggedIn) polling();
         }, 1000);
@@ -407,9 +446,9 @@ export function init() {
 
 export function refreshUI() {
     if (ui != undefined) {
-        let isWin = process.platform === "win32";
-        if (isWin) ui.setContent(tunnels);
-        else ui.notWin();
+        let isSupported = supportedOS.includes(process.platform);
+        if (isSupported) ui.setContent(tunnels);
+        else ui.unsupported();
     }
 }
 
