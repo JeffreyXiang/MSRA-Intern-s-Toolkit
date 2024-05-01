@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getFile } from '../utils';
+import { getFile } from '../helper/file_utils';
 import * as gcr from '../gcr_tunnel';
 
 export class GCRTunnelView implements vscode.WebviewViewProvider {

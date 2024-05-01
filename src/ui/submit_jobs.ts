@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
-import { getFile } from '../utils';
+import { getFile } from '../helper/file_utils';
 import * as job from '../submit_jobs';
-import { stat } from 'fs';
 
 export class SubmitJobsView implements vscode.WebviewViewProvider {
     private view?: vscode.WebviewView;
@@ -47,16 +46,18 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
         // console.log('msra_intern_s_toolkit.ui.SubmitJobsView: Webview resolved');
     }
 
-    public setContent(config: job.JobConfig) {
-        let msg_config = JSON.parse(JSON.stringify(config));
+    public setContent(params: job.uiParams) {
+        let msg_params = JSON.parse(JSON.stringify(params));
         if (this.view) {
-            if (typeof msg_config.environment.setup_script !== 'string') {
-                msg_config.environment.setup_script = msg_config.environment.setup_script.join('\n');
+            if (msg_params.hasOwnProperty('config')) {
+                if (typeof msg_params.config.environment.setup_script !== 'string') {
+                    msg_params.config.environment.setup_script = msg_params.config.environment.setup_script.join('\n');
+                }
+                if (typeof msg_params.config.experiment.script !== 'string') {
+                    msg_params.config.experiment.script = msg_params.config.experiment.script.join('\n');
+                }
             }
-            if (typeof msg_config.experiment.script !== 'string') {
-                msg_config.experiment.script = msg_config.experiment.script.join('\n');
-            }
-            let message = {command: 'setContent', params: msg_config};
+            let message = {command: 'setContent', params: msg_params};
             this.view.webview.postMessage(message);
             // console.log('msra_intern_s_toolkit.ui.SubmitJobsView: Send ' + JSON.stringify(message));
         }

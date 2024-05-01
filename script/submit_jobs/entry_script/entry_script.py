@@ -81,7 +81,7 @@ if __name__ == "__main__":
     if not (setup[0] == "" and len(setup) == 1):
         script.print("Setting up environment...")
         for cmd in setup:
-            script.add(cmd)
+            if cmd.strip() != "": script.add(cmd)
         script.print("Environment setup done.")
 
     # start training
@@ -89,6 +89,6 @@ if __name__ == "__main__":
     train = config['experiment']['script']
     train = [train] if isinstance(train, str) else train
     for cmd in train:
-        script.add(cmd)
+        if cmd.strip() != "": script.add(cmd)
 
     script.run()

@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>Submit Jobs</title>
     <style>
+        body {
+            user-select: none;
+        }
+
         select, input, textarea {
             margin-left: 5px;
             background: var(--vscode-input-background);
@@ -18,6 +22,178 @@
 
         select:focus, input:focus, textarea:focus {
             outline: 1px var(--vscode-focusBorder) solid;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-flex;
+            flex: 1 0 50px;
+            min-width: 50px;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            left: -80px;
+            top: 16px;
+            white-space: nowrap;
+            background-color: var(--vscode-editorWidget-background);
+            width: calc(100% + 80px);
+            max-height: calc(100vh - 125px);
+            overflow-y: auto;
+            box-shadow: 0px 0px 8px 0px rgba(0,0,0,0.5);
+            z-index: 1;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content .title {
+            margin: 5px;
+            padding: 0px 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dropdown-content .title .info {
+            overflow: hidden;
+            flex: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .dropdown-content .title .info .name {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--vscode-editor-foreground);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .dropdown-content .title .info .desc {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: gray;
+            font-size: 10px;
+        }
+
+        .dropdown-content .title .quota {
+            height: 100%;
+            width: 50px;
+            margin-left: 5px;
+            font-size: 8px;
+            display: flex;
+            flex: 0 0 50px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dropdown-content .item {
+            display: block;
+            background: rgb(128, 128, 128, 0.1);
+            margin: 5px;
+            padding: 2px 5px;
+        }
+
+        .dropdown-content .item:hover {
+            background: rgb(128, 128, 128, 0.2);
+        }
+
+        .dropdown-content .item:active {
+            background: rgb(128, 128, 128, 0.3);
+        }
+
+        .dropdown-content .item .name {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--vscode-editor-foreground);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .dropdown-content .item .desc {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: gray;
+            font-size: 10px;
+        }
+
+        .dropdown-content .subitem {
+            position: relative;
+            margin: 3px 0px;
+            padding: 0px 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dropdown-content .subitem::before {
+            content: "";
+            position: absolute;
+            top: -1.5px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(128,128,128,0.2);
+        }
+
+        .dropdown-content .subitem .info {
+            overflow: hidden;
+            flex: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .dropdown-content .subitem .info .name {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--vscode-editor-foreground);
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .dropdown-content .subitem .info .desc {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: gray;
+            font-size: 8px;
+        }
+
+        .dropdown-content .subitem .quota {
+            height: 100%;
+            width: 50px;
+            margin-left: 5px;
+            font-size: 8px;
+            display: flex;
+            flex: 0 0 50px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dropdown-content .basic {
+            color: rgb(173, 138, 86) !important;
+        }
+
+        .dropdown-content .standard {
+            color: rgb(180, 180, 180) !important;
+        }
+
+        .dropdown-content .premium {
+            color: rgb(255,215,0) !important;
         }
 
         div.groupbar {
@@ -90,33 +266,162 @@
             document.getElementsByClassName('ignore_dir_')[0].style.display = sync_code ? null : 'none';
         }
 
+        function update_config(config) {
+            document.getElementById('virtual_cluster').value = config.cluster.virtual_cluster;
+            document.getElementById('workspace').value       = config.cluster.workspace;
+            document.getElementById('instance_type').value   = config.cluster.instance_type;
+            document.getElementById('node_count').value      = config.cluster.node_count.toString();
+            document.getElementById('sla_tier').value        = config.cluster.sla_tier;
+            document.getElementById('datastore_name').value  = config.storage.datastore_name;
+            document.getElementById('account_name').value    = config.storage.account_name;
+            document.getElementById('account_key').value     = config.storage.account_key;
+            document.getElementById('container_name').value  = config.storage.container_name;
+            document.getElementById('sas_token').value       = config.storage.sas_token;
+            document.getElementById('docker_image').value    = config.environment.docker_image;
+            document.getElementById('setup_script').value    = config.environment.setup_script;
+            document.getElementById('name').value            = config.experiment.name;
+            document.getElementById('job_name').value        = config.experiment.job_name;
+            document.getElementById('workdir').value         = config.experiment.workdir;
+            document.getElementById('copy_data').checked     = config.experiment.copy_data;
+            document.getElementById('sync_code').checked     = config.experiment.sync_code;
+            document.getElementById('data_dir').value        = config.experiment.data_dir;
+            document.getElementById('data_subdir').value     = config.experiment.data_subdir;
+            document.getElementById('ignore_dir').value      = config.experiment.ignore_dir;
+            document.getElementById('script').value          = config.experiment.script;
+            update_checkbox_hiddens();
+        }
+
+        function update_virtual_clusters(virtual_clusters) {
+            let dropdown = document.getElementById('virtual_cluster_dropdown_items');
+            let input = document.getElementById('virtual_cluster');
+            dropdown.innerHTML = '';
+            for (let i = 0; i < virtual_clusters.length; i++) {
+                let item = document.createElement('div');
+                item.className = 'item';
+                let desc = '';
+                for (let j = 0; j < virtual_clusters[i].instanceSeries.length; j++) {
+                    desc += `
+                        <div title="${virtual_clusters[i].instanceSeries[j].name}" class="subitem">
+                            <div class="info">
+                            	<div class="name">${virtual_clusters[i].instanceSeries[j].id}</div>
+                            	<div class="desc">${virtual_clusters[i].instanceSeries[j].name}</div>
+                            </div>
+                            <div class="quota">
+                                <div class="premium">${virtual_clusters[i].instanceSeries[j].quota.Premium.used} / ${virtual_clusters[i].instanceSeries[j].quota.Premium.limit}</div>
+                                <div class="standard">${virtual_clusters[i].instanceSeries[j].quota.Standard.used} / ${virtual_clusters[i].instanceSeries[j].quota.Standard.limit}</div>
+                                <div class="basic">${virtual_clusters[i].instanceSeries[j].quota.Basic.used} / ${virtual_clusters[i].instanceSeries[j].quota.Basic.limit}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                item.innerHTML = '<div class="name">' + virtual_clusters[i].name.toUpperCase() + '</div><div class="desc">' + desc + '</div>';
+                item.onclick = () => {
+                    input.value = virtual_clusters[i].name;
+                    config_changed('cluster', 'virtual_cluster');
+                    update_instance_types(virtual_clusters[i].instanceSeries);
+                    if (virtual_clusters[i].defaultWorkspace) {
+                        document.getElementById('workspace').value = virtual_clusters[i].defaultWorkspace.name;
+                        config_changed('cluster', 'workspace');
+                    }
+                }
+                dropdown.appendChild(item);
+            }
+        }
+
+        function update_workspaces(workspaces) {
+            let dropdown = document.getElementById('workspace_dropdown_items');
+            let input = document.getElementById('workspace');
+            dropdown.innerHTML = '';
+            for (let i = 0; i < workspaces.length; i++) {
+                let item = document.createElement('div');
+                item.className = 'item';
+                item.innerHTML = '<div class="name">' + workspaces[i].name + '</div>';
+                item.onclick = () => {
+                    input.value = workspaces[i].name;
+                    config_changed('cluster', 'workspace');
+                }
+                dropdown.appendChild(item);
+            }
+        }
+
+        function update_docker_images(images) {
+            let dropdown = document.getElementById('docker_image_dropdown_items');
+            let input = document.getElementById('docker_image');
+            let instance_type = document.getElementById('instance_type').value;
+            dropdown.innerHTML = '';
+            for (let i = 0; i < images.length; i++) {
+                if (images[i].name == input.value) current_image_available = true;
+                let item = document.createElement('div');
+                item.className = 'item';
+                item.title = images[i].description;
+                item.innerHTML = '<div class="name">' + images[i].name + '</div><div class="desc">' + images[i].description + '</div>';
+                item.onclick = () => {
+                    input.value = images[i].name;
+                    config_changed('environment', 'docker_image');
+                }
+                dropdown.appendChild(item);
+            }
+        }
+
+        function update_instance_types(instance_series) {
+            let dropdown = document.getElementById('instance_type_dropdown_items');
+            let input = document.getElementById('instance_type');
+            let is_current_instance_type_available = false;
+            dropdown.innerHTML = '';
+            for (let i = 0; i < instance_series.length; i++) {
+                let item = document.createElement('div');
+                item.className = 'title';
+                item.innerHTML = `
+                    <div title="${instance_series[i].name}" class="info">
+                    	<div class="name">${instance_series[i].id}</div>
+                    	<div class="desc">${instance_series[i].name}</div>
+                    </div>
+                    <div class="quota">
+                        <div class="premium">${instance_series[i].quota.Premium.used} / ${instance_series[i].quota.Premium.limit}</div>
+                        <div class="standard">${instance_series[i].quota.Standard.used} / ${instance_series[i].quota.Standard.limit}</div>
+                        <div class="basic">${instance_series[i].quota.Basic.used} / ${instance_series[i].quota.Basic.limit}</div>
+                    </div>
+                `;
+                dropdown.appendChild(item);
+                for (let j = 0; j < instance_series[i].instanceTypes.length; j++) {
+                    if (instance_series[i].instanceTypes[j].name == input.value) is_current_instance_type_available = true;
+                    let item = document.createElement('div');
+                    item.className = 'item';
+                    item.title = instance_series[i].instanceTypes[j].description;
+                    item.innerHTML = `
+                        <div class="name">${instance_series[i].instanceTypes[j].name}</div>
+                        <div class="desc">${instance_series[i].instanceTypes[j].description}</div>
+                    `;
+                    item.onclick = () => {
+                        input.value = instance_series[i].instanceTypes[j].name;
+                        config_changed('cluster', 'instance_type');
+                    }
+                    dropdown.appendChild(item);
+                }
+            }
+            if (!is_current_instance_type_available) {
+                input.value = instance_series[0].instanceTypes[0].name; // default to the first instance type
+                config_changed('cluster', 'instance_type');
+            }
+        }
+
         window.addEventListener('message', event => {
             const command = event.data.command;
             const params = event.data.params;
             const state = ['closed', 'preopen_check', 'bastion_opening', 'ssh_opening', 'opened'];
             switch (command) {
                 case 'setContent':
-                    document.getElementById('virtual_cluster').value = params.cluster.virtual_cluster;
-                    document.getElementById('instance_type').value   = params.cluster.instance_type;
-                    document.getElementById('node_count').value      = params.cluster.node_count.toString();
-                    document.getElementById('sla_tier').value        = params.cluster.sla_tier;
-                    document.getElementById('datastore_name').value  = params.storage.datastore_name;
-                    document.getElementById('account_name').value    = params.storage.account_name;
-                    document.getElementById('account_key').value     = params.storage.account_key;
-                    document.getElementById('container_name').value  = params.storage.container_name;
-                    document.getElementById('sas_token').value       = params.storage.sas_token;
-                    document.getElementById('docker_image').value    = params.environment.docker_image;
-                    document.getElementById('setup_script').value    = params.environment.setup_script;
-                    document.getElementById('name').value            = params.experiment.name;
-                    document.getElementById('job_name').value        = params.experiment.job_name;
-                    document.getElementById('workdir').value         = params.experiment.workdir;
-                    document.getElementById('copy_data').checked     = params.experiment.copy_data;
-                    document.getElementById('sync_code').checked     = params.experiment.sync_code;
-                    document.getElementById('data_dir').value        = params.experiment.data_dir;
-                    document.getElementById('data_subdir').value     = params.experiment.data_subdir;
-                    document.getElementById('ignore_dir').value     = params.experiment.ignore_dir;
-                    document.getElementById('script').value          = params.experiment.script;
-                    update_checkbox_hiddens();
+                    if (params.config) {
+                        update_config(params.config);
+                    }
+                    if (params.resource) {
+                        update_virtual_clusters(params.resource.virtualClusters);
+                        let selected_virtual_cluster = document.getElementById('virtual_cluster').value;
+                        let selected_virtual_cluster_index = params.resource.virtualClusters.findIndex((item) => item.name == selected_virtual_cluster);
+                        update_instance_types(params.resource.virtualClusters[selected_virtual_cluster_index].instanceSeries);
+                        update_workspaces(params.resource.workspaces);
+                        update_docker_images(params.resource.images);
+                    }
                     break;
                 case 'noWorkspace':
                     document.body.innerHTML = '<div style="margin: 10px;">Please open a workspace first.</div>';
@@ -150,18 +455,54 @@
 </head>
 <body>
     <div class="groupbar">Cluster</div>
-    <div class="item"><div class="label">Virtual Cluster:</div><select id="virtual_cluster" onchange="config_changed('cluster', 'virtual_cluster')">
-            <option value="msroctovc" msrpilot>msroctovc</option>
-            <option value="msrresrchvc">msrresrchvc</option>
-            <option value="itplabrr1cl1">itplabrr1cl1</option>
-    </select></div>
-    <div class="item"><div class="label">Instance Type:</div><input id="instance_type" type="text" onchange="config_changed('cluster', 'instance_type')"></div>
+    <div class="item">
+        <div class="label">Virtual Cluster:</div>
+        <div class="dropdown">
+            <input id="virtual_cluster" type="text" disabled>
+            <div class="dropdown-content" id="virtual_cluster_dropdown_items"></div>
+        </div>
+    </div>
+    <div class="item">
+        <div class="label">Workspace:</div>
+        <div class="dropdown">
+            <input id="workspace" type="text" disabled>
+            <div class="dropdown-content" id="workspace_dropdown_items"></div>
+        </div>
+    </div>
+    <div class="item">
+        <div class="label">Instance Type:</div>
+        <div class="dropdown">
+            <input id="instance_type" type="text" disabled>
+            <div class="dropdown-content" id="instance_type_dropdown_items"></div>
+        </div>
+    </div>
     <div class="item"><div class="label">Node Count:</div><input id="node_count" type="number" min="1" max="4" step="1" onchange="config_changed('cluster', 'node_count')"></div>
-    <div class="item"><div class="label">SLA Tier:</div><select id="sla_tier" onchange="config_changed('cluster', 'sla_tier')">
-        <option value="Premium" msrpilot>Premium</option>
-        <option value="Standard">Standard</option>
-        <option value="Basic">Basic</option>
-    </select></div>
+    <div class="item">
+        <div class="label">SLA Tier:</div>
+        <div class="dropdown">
+            <input id="sla_tier" type="text" disabled>
+            <div class="dropdown-content">
+                <div class="item" onclick="document.getElementById('sla_tier').value = 'Premium'; config_changed('cluster', 'sla_tier')">
+                    <div class="name premium">Premium</div>
+                    <div class="desc">GPU time fraction guarantee: 90%</div>
+                    <div class="desc">Preemption: Almost never</div>
+                    <div class="desc">Topology: Always respects locality</div>
+                </div>
+                <div class="item" onclick="document.getElementById('sla_tier').value = 'Standard'; config_changed('cluster', 'sla_tier')">
+                    <div class="name standard">Standard</div>
+                    <div class="desc">GPU time fraction guarantee: 70%</div>
+                    <div class="desc">Preemption: Infrequent</div>
+                    <div class="desc">Topology: Mostly respects locality</div>
+                </div>
+                <div class="item" onclick="document.getElementById('sla_tier').value = 'Basic'; config_changed('cluster', 'sla_tier')">
+                    <div class="name basic">Basic</div>
+                    <div class="desc">GPU time fraction guarantee: Best effort</div>
+                    <div class="desc">Preemption: Frequent</div>
+                    <div class="desc">Topology: Best effort</div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="groupbar">Storage</div>
     <div class="item"><div class="label">Datastore:</div><input id="datastore_name" type="text" onchange="config_changed('storage', 'datastore_name')"></div>
     <div class="item"><div class="label">Account:</div><input id="account_name" type="text" onchange="config_changed('storage', 'account_name')"></div>
@@ -169,7 +510,13 @@
     <div class="item"><div class="label">Container:</div><input id="container_name" type="text" onchange="config_changed('storage', 'container_name')"></div>
     <div class="item"><div class="label">SAS Token:</div><input id="sas_token" type="text" onchange="config_changed('storage', 'sas_token')"></div>
     <div class="groupbar">Environment</div>
-    <div class="item"><div class="label">Docker Image:</div><input id="docker_image" type="text" onchange="config_changed('environment', 'docker_image')"></div>
+    <div class="item">
+        <div class="label">Docker Image:</div>
+        <div class="dropdown">
+            <input id="docker_image" type="text" disabled>
+            <div class="dropdown-content" id="docker_image_dropdown_items"></div>
+        </div>
+    </div>
     <div class="item"><div class="label">Setup Script:</div><textarea id="setup_script" type="text" onchange="config_changed('environment', 'setup_script')"></textarea></div>
     <div class="groupbar">Experiment</div>
     <div class="item"><div class="label">Name:</div><input id="name" type="text" onchange="config_changed('experiment', 'name')"></div>
@@ -182,12 +529,12 @@
     <div class="item ignore_dir_"><div class="label">Ignore Dir:</div><input id="ignore_dir" type="text" onchange="config_changed('experiment', 'ignore_dir')"></div>
     <div class="item"><div class="label">Script:</div><textarea id="script" type="text" onchange="config_changed('experiment', 'script')"></textarea></div>
     <div id="buttons">
-        <div class="button", onclick="send_message({command: 'load'})">Load</div>
-        <div class="button", onclick="send_message({command: 'save'})">Save</div>
+        <div class="button" onclick="send_message({command: 'load'})">Load</div>
+        <div class="button" onclick="send_message({command: 'save'})">Save</div>
     </div>
     <div id="buttons">
-        <div class="button", onclick="send_message({command: 'synchronize'})">Synchronize</div>
-        <div class="button", onclick="send_message({command: 'submit'})">Submit</div>
+        <div class="button" onclick="send_message({command: 'synchronize'})">Synchronize</div>
+        <div class="button" onclick="send_message({command: 'submit'})">Submit</div>
     </div>
 </body>
 </html>

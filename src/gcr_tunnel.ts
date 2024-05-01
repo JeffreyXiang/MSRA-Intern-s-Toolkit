@@ -3,7 +3,9 @@ import * as cp from 'child_process'
 import * as process from 'process'
 import {vscodeContext, outputChannel} from './extension'
 import * as az from './azure';
-import {globalPath, pidIsRunning, findNetProcessWin, findNetProcessMac, NetProtocol, NetState, getFile, saveFile, exists, showErrorMessageWithHelp} from './utils'
+import {showErrorMessageWithHelp} from './utils'
+import {globalPath, getFile, saveFile, exists} from './helper/file_utils'
+import {pidIsRunning, findNetProcessWin, findNetProcessMac, NetProtocol, NetState} from './helper/proc_utils'
 import {GCRTunnelView} from './ui/gcr_tunnel'
 
 var supportedOS = ['win32', 'darwin'];

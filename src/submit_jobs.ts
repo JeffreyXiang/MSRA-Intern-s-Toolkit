@@ -2,10 +2,17 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process'
 import {vscodeContext, outputChannel} from './extension'
 import {SubmitJobsView} from './ui/submit_jobs'
-import { getWorkspaceFile, globalPath, workspacePath, listWorkspaceFiles, workspaceExists, saveWorkspaceFile, showErrorMessageWithHelp } from './utils';
+import {showErrorMessageWithHelp} from './utils'
+import {globalPath, workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles} from './helper/file_utils'
+import * as singularity from './helper/singularity'
 
 class ClusterConfig {
+    workspace: string = ''
+    workspace_subscription_id: string = ''
+    workspace_resource_group: string = ''
     virtual_cluster: string = 'msroctovc'
+    virtual_cluster_subscription_id: string = ''
+    virtual_cluster_resource_group: string = ''
     instance_type: string = ''
     node_count: number = 1
     sla_tier: string = 'Basic'
@@ -46,7 +53,12 @@ export class JobConfig {
         if (init === undefined) return;
 
         if (init.cluster !== undefined) {
+            if (init.cluster.workspace !== undefined) this.cluster.workspace = init.cluster.workspace;
+            if (init.cluster.workspace_subscription_id !== undefined) this.cluster.workspace_subscription_id = init.cluster.workspace_subscription_id;
+            if (init.cluster.workspace_resource_group !== undefined) this.cluster.workspace_resource_group = init.cluster.workspace_resource_group;
             if (init.cluster.virtual_cluster !== undefined) this.cluster.virtual_cluster = init.cluster.virtual_cluster;
+            if (init.cluster.virtual_cluster_subscription_id !== undefined) this.cluster.virtual_cluster_subscription_id = init.cluster.virtual_cluster_subscription_id;
+            if (init.cluster.virtual_cluster_resource_group !== undefined) this.cluster.virtual_cluster_resource_group = init.cluster.virtual_cluster_resource_group;
             if (init.cluster.instance_type !== undefined) this.cluster.instance_type = init.cluster.instance_type;
             if (init.cluster.node_count !== undefined) this.cluster.node_count = init.cluster.node_count;
             if (init.cluster.sla_tier !== undefined) this.cluster.sla_tier = init.cluster.sla_tier;
@@ -86,7 +98,22 @@ export class JobConfig {
     }
 }
 
+export class Resource {
+    workspaces: singularity.Workspace[] = [];
+    virtualClusters: singularity.VirtualCluster[] = [];
+    images: singularity.Image[] = [];
+
+    constructor(init?: any) {
+        if (init === undefined) return;
+
+        if (init.workspaces !== undefined) this.workspaces = init.workspaces;
+        if (init.virtualClusters !== undefined) this.virtualClusters = init.virtualClusters;
+        if (init.images !== undefined) this.images = init.images;
+    }
+}
+
 var config: JobConfig;
+var resource: Resource;
 
 export var ui: SubmitJobsView;
 
@@ -176,8 +203,9 @@ export async function submit() {
 
                 // First step: upload the config file
                 let status1 = await new Promise<string> (resolve1 => {
+                    let source = `"${workspacePath(cfgPath)}"`;
                     let destination = `"${cfg.storage.sas_token.split('?')[0]}/${cfg.experiment.workdir}/.msra_intern_s_toolkit/userdata/temp/?${cfg.storage.sas_token.split('?')[1]}"`;
-                    let args = ['copy', workspacePath(cfgPath), destination];
+                    let args = ['copy', source, destination];
                     outputChannel.appendLine(`[CMD] > azcopy ${args.join(' ')}`);
                     let proc = cp.spawn('azcopy', args, {shell: true});
                     progress.report({increment: 25});
@@ -234,8 +262,8 @@ export async function submit() {
                 }
 
                 let status2 = await new Promise<string> (resolve2 => {
-                    outputChannel.appendLine(`[CMD] > conda run -n msra-intern-s-toolkit python ${globalPath('script/submit_jobs/submit.py')} --config ${workspacePath(cfgPath)}`);
-                    let proc = cp.spawn('conda', ['run', '-n', 'msra-intern-s-toolkit', 'python', globalPath('script/submit_jobs/submit.py'), '--config', workspacePath(cfgPath)], {shell: true});
+                    outputChannel.appendLine(`[CMD] > conda run -n msra-intern-s-toolkit python "${globalPath('script/submit_jobs/submit.py')}" --config "${workspacePath(cfgPath)}"`);
+                    let proc = cp.spawn('conda', ['run', '-n', 'msra-intern-s-toolkit', 'python', `"${globalPath('script/submit_jobs/submit.py')}"`, '--config', `"${workspacePath(cfgPath)}"`], {shell: true});
                     progress.report({increment: 25});
                     let timeout = setTimeout(() => {
                         proc.kill();
@@ -279,15 +307,41 @@ export async function submit() {
 
 export function updateConfig(group: string, label: string, value: any) {
     (config as any)[group][label] = value;
+    if (group == 'cluster') {
+        if (label == 'workspace') {
+            let ws = resource.workspaces.find((v) => v.name == value);
+            if (ws) {
+                config.cluster.workspace_subscription_id = ws.subscriptionId;
+                config.cluster.workspace_resource_group = ws.resourceGroup;
+            }
+        }
+        else if (label == 'virtual_cluster') {
+            let vc = resource.virtualClusters.find((v) => v.name == value);
+            if (vc) {
+                config.cluster.virtual_cluster_subscription_id = vc.subscriptionId;
+                config.cluster.virtual_cluster_resource_group = vc.resourceGroup;
+            }
+        }
+    }
     saveWorkspaceFile('./userdata/submit_jobs.json', JSON.stringify(config, null, 4));
 }
 
-function loadJson(path: string) {
+function loadConfig(path: string) {
     if (workspaceExists(path)) {
         config = new JobConfig(JSON.parse(getWorkspaceFile(path)));
     }
     else {
         config = new JobConfig();
+    }
+}
+
+function loadResourceCache() {
+    let cachePath = './userdata/resource_cache.json';
+    if (workspaceExists(cachePath)) {
+        resource = new Resource(JSON.parse(getWorkspaceFile(cachePath)));
+    }
+    else {
+        resource = new Resource();
     }
 }
 
@@ -307,9 +361,9 @@ async function loadHistory() {
         ignoreFocusOut: true
     });
     if (res == undefined) return;
-    loadJson(`./userdata/jobs_history/${res}.json`);
+    loadConfig(`./userdata/jobs_history/${res}.json`);
     saveWorkspaceFile('./userdata/submit_jobs.json', JSON.stringify(config, null, 4));
-    refreshUI();
+    refreshUI({config: config});
 }
 
 async function loadSaved() {
@@ -321,8 +375,8 @@ async function loadSaved() {
         ignoreFocusOut: true
     });
     if (res == undefined) return;
-    loadJson(`./userdata/saved_jobs/${res}.json`);
-    refreshUI();
+    loadConfig(`./userdata/saved_jobs/${res}.json`);
+    refreshUI({config: config});
 }
 
 export async function load() {
@@ -356,8 +410,6 @@ export async function save() {
     }
     saveWorkspaceFile(`./userdata/saved_jobs/${res}.json`, JSON.stringify(config, null, 4));
 }
-
-
 
 function showSetupCondaEnvMessage() {
     vscode.window.showInformationMessage('Conda environment not found. Setup now?', 'Yes', 'No').then((choice) => {
@@ -396,7 +448,7 @@ async function setupCondaEnv() {
             progress.report({message: "Setting up the conda environment..."});
             return new Promise<void> (resolve => {
                 outputChannel.appendLine('[CMD] > conda env create -f script/environment.yml');
-                let proc = cp.spawn('conda', ['env', 'create', '-f', globalPath('script/environment.yml')], {shell: true});
+                let proc = cp.spawn('conda', ['env', 'create', '-f', `"${globalPath('script/environment.yml')}"`], {shell: true});
                 proc.stdout.on('data', (data) => {
                     let sdata = String(data);
                     outputChannel.appendLine('[CMD OUT] ' + sdata);
@@ -418,16 +470,55 @@ async function setupCondaEnv() {
     )
 }
 
+export async function getComputeResources() {
+    let res = await Promise.all([singularity.REST.getWorkspaces(), singularity.REST.getVirtualClusters(), singularity.REST.getImages()]);
+    resource.workspaces = res[0];
+    resource.virtualClusters = res[1];
+    resource.images = res[2];
+    singularity.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
+    saveWorkspaceFile('./userdata/resource_cache.json', JSON.stringify(resource, null, 4));
+}
+
+export class uiParams {
+    config?: JobConfig;
+    resource?: {workspaces: singularity.Workspace[], virtualClusters: singularity.VirtualCluster[]};
+}
+
+export function refreshUI(params?: uiParams) {
+    console.log(params);
+    if (params == undefined) params = {config: config, resource: resource};
+    if (ui != undefined) {
+        if (!vscode.workspace.workspaceFolders) ui.noWorkspace();
+        else ui.setContent(params);
+    }
+}
+
 export function init() {
     outputChannel.appendLine('[INFO] Initializing job submission module...');
     if (vscode.workspace.workspaceFolders) {
         outputChannel.appendLine('[INFO] Workspace folder found.');
         checkCondaEnv();
-        loadJson('./userdata/submit_jobs.json');
+        loadConfig('./userdata/submit_jobs.json');
+        loadResourceCache();
+        if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0) {
+            vscode.commands.executeCommand('msra_intern_s_toolkit.refreshSubmitJobsView');
+        }
     }
     else {
         outputChannel.appendLine('[INFO] No workspace folder found.');
     };
+
+    vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.refreshSubmitJobsView', () => {
+        // show waiting info
+        vscode.window.withProgress(
+            {location: vscode.ProgressLocation.Notification, cancellable: false},
+            (() => (async (progress) => {
+                progress.report({message: "Fetching compute resources info..."});
+                await getComputeResources();
+                refreshUI({resource: resource});
+            }))()
+        );
+    }));
 
     ui = new SubmitJobsView();
     vscodeContext.subscriptions.push(vscode.window.registerWebviewViewProvider(
@@ -435,11 +526,4 @@ export function init() {
         ui,
         {webviewOptions: {retainContextWhenHidden: true}}
     ));
-}
-
-export function refreshUI() {
-    if (ui != undefined) {
-        if (!vscode.workspace.workspaceFolders) ui.noWorkspace();
-        else ui.setContent(config);
-    }
 }
