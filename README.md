@@ -24,10 +24,9 @@ First of all, as the welcome says, login to Azure with the **Click to login** bu
 
 * When running for the first time, there will be a message for you to setup conda environment. This is because the extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. Press **Yes** and wait until finished before continue. You can also manual setup with:
 ```
-conda create -n msra-intern-s-toolkit python=3.8
+conda create -n msra-intern-s-toolkit python=3.10
 conda activate msra-intern-s-toolkit
-pip install azureml-sdk azure-cli azureml-contrib-aisc
-pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml-contrib-k8s
+pip install azure-ai-ml azure-identity
 ```
 * Fill the form and press **Submit**. If everything is ok, you shall get a success message with job id after a while.
 * If you want to load the config of submitted jobs. Press **Load** and select it in submission history.
@@ -36,15 +35,16 @@ pip install --upgrade --disable-pip-version-check --extra-index-url https://azur
 
 **Cluster**
 
-Cluster zone sets which cluster to submit the job, how many nodes and gpus per nodes to use and priority. Currently there are two types of clusters being used in MSRA: **ITP** and **Singularity**.
+Cluster zone sets which virtual cluster and worlspace to submit the job, how many nodes and gpus per nodes to use and priority.
 
-ITP cluster contains only **itplabrr1cl1**. It has up to 8 V100 32GB GPUs per node. Number of GPUs to use is set by **Instance Type**. and **SLA Tier** is ignored.
+* **Virtual Cluster:** The detailed information of each virtual cluster can be found in the dropdown list, including available GPU types and numbers. Choose the one that fits your job best.
+* **Workspace:** The workspace where you can monitor and manage your jobs. Some of the virtual clusters may have default workspaces. By selecting a virtual cluster, the workspace will be automatically set. If not, you can choose one from the dropdown list.
+* **Instance Type:** GPU type and numbers are set by **Instance Type**, which is a name string alike `ND40_v2g1`. The discription of each instance type can be found in the dropdown list.
+* **Node Count:** Set the number of nodes. If you want to run a distributed job, set the node count to larger than 1. The submitter will launch one process per node with environs `NODE_RANK`, `MASTER_ADDR` and `MASTER_PORT`. You can use these values to launch distributed training inside your scipt.
+* **SLA Tier:** Determines the priority of your job. The higher the tier, the less likely your job getting interrupted.
 
-Singularity clusters contain **msroctovc** and **msrresrchvc**. They have different types and numbers of GPUs on the nodes. GPU type and numbers are set by **Instance Type**, which is a name string alike `ND40_v2g1`. **SLA Tier** determines the priority of your job. The higher the tier, the less likely your job getting interrupted. All information about Singularity cluster settings can be found on the website mentioned below.
 
-This extension also support multi-node training. When **Node Count** is set larger than 1, the submitter will launch one process per node with environs `NODE_RANK`, `MASTER_ADDR` and `MASTER_PORT`. You can use these values to launch distributed training inside your scipt.
-
-For more information about ITP and Singularity, referring to [AML Kubernetes (aka AML K8s)(aka ITP) Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/3438/AML-Kubernetes-(aka-AML-K8s)(aka-ITP)-Overview) and [Singularity Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4712/Singularity-Overview).
+For more information about virtual clusters, referring to [Singularity Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4712/Singularity-Overview).
 
 **Storage**
 
@@ -58,7 +58,7 @@ Storage zone sets the working directory where your script will run. It must be s
 
 **Environment**
 
-* **Docker Image:** Image name of the environment. Now only curated images are supported. See [Curated environments - Azure Machine Learning | Microsoft Learn](https://learn.microsoft.com/en-us/azure/machine-learning/resource-curated-environments) for ITP and [Singularity container images - Singularity](https://singularitydocs.azurewebsites.net/docs/container_images/) for Singularity.
+* **Docker Image:** Image name of the environment. Now only curated images are supported. See [Singularity container images - Singularity](https://singularitydocs.azurewebsites.net/docs/container_images/).
 * **Setup Script:** Script to be run before the experiment. This script will be run under the working directory. So, usage of `requirements.txt` is recommended.
 
 **Experiment**
@@ -95,7 +95,7 @@ Host tunnel
 
 **Azure CLI not installed.**
 
-* Install Azure CLI with version higher than 2.32. See [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
+* Install Azure CLI with version higher than 2.58. See [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 
 **Command timeout.**
 
@@ -114,10 +114,9 @@ Host tunnel
 * * Run the following command:
 
 ```
-conda create -n msra-intern-s-toolkit python=3.8
+conda create -n msra-intern-s-toolkit python=3.10
 conda activate msra-intern-s-toolkit
-pip install azureml-sdk azure-cli azureml-contrib-aisc
-pip install --upgrade --disable-pip-version-check --extra-index-url https://azuremlsdktestpypi.azureedge.net/K8s-Compute/D58E86006C65 azureml-contrib-k8s
+pip install azure-ai-ml azure-identity
 ```
 
 **Azcopy not found.**
@@ -160,7 +159,6 @@ pip install --upgrade --disable-pip-version-check --extra-index-url https://azur
 * [Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Learn](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10)
 * [GCR Bastion - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/6627/GCR-Bastion)
 * [SSH Key Management - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management)
-* [AML Kubernetes (aka AML K8s)(aka ITP) Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/3438/AML-Kubernetes-(aka-AML-K8s)(aka-ITP)-Overview)
 * [Singularity Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4712/Singularity-Overview)
 * [Linux Sandbox Getting Started - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/531/Linux-Sandbox-Getting-Started)
 

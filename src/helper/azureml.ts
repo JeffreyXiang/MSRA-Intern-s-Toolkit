@@ -122,7 +122,7 @@ export namespace  REST {
             workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup));
         }
         
-        console.log('msra_intern_s_toolkit.helper.singularity.REST.getWorkspaces: Found ' + workspaces.length + ' workspaces');
+        console.log('msra_intern_s_toolkit.helper.azureml.REST.getWorkspaces: Found ' + workspaces.length + ' workspaces');
         console.log(workspaces);
         return workspaces;
     }
@@ -187,7 +187,7 @@ export namespace  REST {
             }
         }
 
-        console.log('msra_intern_s_toolkit.helper.singularity.REST.getVirtualClusters: Found ' + virtualClusters.length + ' virtual clusters');
+        console.log('msra_intern_s_toolkit.helper.azureml.REST.getVirtualClusters: Found ' + virtualClusters.length + ' virtual clusters');
         console.log(virtualClusters);
         return virtualClusters;
     }
@@ -201,7 +201,7 @@ export namespace  REST {
         for (let key of Object.keys(response)) {
             images.push(new Image(key, response[key]));
         }
-        console.log('msra_intern_s_toolkit.helper.singularity.REST.getImages: Found ' + images.length + ' images');
+        console.log('msra_intern_s_toolkit.helper.azureml.REST.getImages: Found ' + images.length + ' images');
         console.log(images);
         return images;
     }
@@ -218,6 +218,6 @@ export function findDefaultWorkspace(workspaces: Workspace[], virtualClusters: V
         }
     }
 
-    console.log('msra_intern_s_toolkit.helper.singularity.findDefaultWorkspace: Finished');
+    console.log('msra_intern_s_toolkit.helper.azureml.findDefaultWorkspace: Finished');
     console.log(virtualClusters);
 }

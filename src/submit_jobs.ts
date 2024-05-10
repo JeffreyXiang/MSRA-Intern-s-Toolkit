@@ -4,7 +4,7 @@ import {vscodeContext, outputChannel} from './extension'
 import {SubmitJobsView} from './ui/submit_jobs'
 import {showErrorMessageWithHelp} from './utils'
 import {globalPath, workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles} from './helper/file_utils'
-import * as singularity from './helper/singularity'
+import * as azureml from './helper/azureml'
 
 class ClusterConfig {
     workspace: string = ''
@@ -99,9 +99,9 @@ export class JobConfig {
 }
 
 export class Resource {
-    workspaces: singularity.Workspace[] = [];
-    virtualClusters: singularity.VirtualCluster[] = [];
-    images: singularity.Image[] = [];
+    workspaces: azureml.Workspace[] = [];
+    virtualClusters: azureml.VirtualCluster[] = [];
+    images: azureml.Image[] = [];
 
     constructor(init?: any) {
         if (init === undefined) return;
@@ -274,13 +274,13 @@ export async function submit() {
                         let sdata = String(data);
                         outputChannel.appendLine('[CMD OUT] ' + sdata);
                         console.log(`msra_intern_s_toolkit.submit: ${sdata}`);
-                        if (sdata.includes('Run(')) {
-                            proc.kill();
-                            clearTimeout(timeout);
-                            let id = sdata.trim().slice(4, -1).split(',')[1].trim().slice(4);
-                            vscode.window.showInformationMessage(`Job submitted. Id: ${id}`);
+                        if (sdata.includes('Job Submitted')) {
+                            let info = JSON.parse(sdata.slice(sdata.indexOf('{')));
+                            vscode.window.showInformationMessage(`${info.displayName} submitted.`, 'View in AML Studio').then((choice) => {
+                                if (choice == 'View in AML Studio') vscode.env.openExternal(vscode.Uri.parse(info.studioUrl));
+                            });
                             progress.report({increment: 25});
-                            saveWorkspaceFile(`./userdata/jobs_history/${id}.json`, JSON.stringify(cfg, null, 4));
+                            saveWorkspaceFile(`./userdata/jobs_history/${info.displayName}_${new Date().getTime()}.json`, JSON.stringify(cfg, null, 4));
                             resolve2('success');
                         }
                     });
@@ -291,7 +291,7 @@ export async function submit() {
                     });
                     proc.on('exit', (code) => {
                         clearTimeout(timeout);
-                        if (code != null) {
+                        if (code != undefined && code != 0) {
                             showErrorMessageWithHelp(`Failed to submit the job. Unknown reason. code ${code}`);
                             resolve2('failed');
                         }
@@ -471,17 +471,17 @@ async function setupCondaEnv() {
 }
 
 export async function getComputeResources() {
-    let res = await Promise.all([singularity.REST.getWorkspaces(), singularity.REST.getVirtualClusters(), singularity.REST.getImages()]);
+    let res = await Promise.all([azureml.REST.getWorkspaces(), azureml.REST.getVirtualClusters(), azureml.REST.getImages()]);
     resource.workspaces = res[0];
     resource.virtualClusters = res[1];
     resource.images = res[2];
-    singularity.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
+    azureml.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
     saveWorkspaceFile('./userdata/resource_cache.json', JSON.stringify(resource, null, 4));
 }
 
 export class uiParams {
     config?: JobConfig;
-    resource?: {workspaces: singularity.Workspace[], virtualClusters: singularity.VirtualCluster[]};
+    resource?: {workspaces: azureml.Workspace[], virtualClusters: azureml.VirtualCluster[]};
 }
 
 export function refreshUI(params?: uiParams) {
