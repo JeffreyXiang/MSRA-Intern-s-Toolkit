@@ -50,7 +50,7 @@ For more information about virtual clusters, referring to [Singularity Overview 
 
 Storage zone sets the working directory where your script will run. It must be somewhere on the Azure Storage. So, don't forget to upload the code to your blob container before submitting the job. Since this is troublesome, I recommend to work using GCR sandbox with your blob countainer mounted as a local disk. For more information, see [Linux Sandbox Getting Started - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/531/Linux-Sandbox-Getting-Started).
 
-* **Datastore:** Arbitrary name.
+* **Datastore:** Arbitrary name for your storage account. Letters should be lowercase.
 * **Account:** Storage account name in Azure Storage.
 * **Acount Key:** Key of your account (second row in properties).
 * **Countainer:** Name of your blob container.
