@@ -257,6 +257,7 @@
     </style>
     <script>
         const vscode = acquireVsCodeApi();
+        var resource = null;
 
         function update_checkbox_hiddens() {
             let copy_data = document.getElementById('copy_data').checked;
@@ -288,6 +289,7 @@
             document.getElementById('data_subdir').value     = config.experiment.data_subdir;
             document.getElementById('ignore_dir').value      = config.experiment.ignore_dir;
             document.getElementById('script').value          = config.experiment.script;
+            document.getElementById('arg_sweep').value       = config.experiment.arg_sweep;
             update_checkbox_hiddens();
         }
 
@@ -415,13 +417,17 @@
                         update_config(params.config);
                     }
                     if (params.resource) {
-                        update_virtual_clusters(params.resource.virtualClusters);
-                        let selected_virtual_cluster = document.getElementById('virtual_cluster').value;
-                        let selected_virtual_cluster_index = params.resource.virtualClusters.findIndex((item) => item.name == selected_virtual_cluster);
-                        update_instance_types(params.resource.virtualClusters[selected_virtual_cluster_index].instanceSeries);
-                        update_workspaces(params.resource.workspaces);
-                        update_docker_images(params.resource.images);
+                        resource = params.resource;
+                        update_virtual_clusters(resource.virtualClusters);
+                        update_workspaces(resource.workspaces);
+                        update_docker_images(resource.images);
                     }
+                    let selected_virtual_cluster = document.getElementById('virtual_cluster').value;
+                    let selected_virtual_cluster_index = resource.virtualClusters.findIndex((item) => item.name == selected_virtual_cluster);
+                    if (selected_virtual_cluster_index != -1)
+                        update_instance_types(resource.virtualClusters[selected_virtual_cluster_index].instanceSeries);
+                    else
+                        update_instance_types([]);
                     break;
                 case 'noWorkspace':
                     document.body.innerHTML = '<div style="margin: 10px;">Please open a workspace first.</div>';
@@ -520,14 +526,15 @@
     <div class="item"><div class="label">Setup Script:</div><textarea id="setup_script" type="text" onchange="config_changed('environment', 'setup_script')"></textarea></div>
     <div class="groupbar">Experiment</div>
     <div class="item"><div class="label">Name:</div><input id="name" type="text" onchange="config_changed('experiment', 'name')"></div>
-    <div class="item"><div class="label">Job Name:</div><input id="job_name" type="text" onchange="config_changed('experiment', 'job_name')"></div>
+    <div class="item"><div class="label">Job Name:</div><input id="job_name" type="text" placeholder="Auto generated" onchange="config_changed('experiment', 'job_name')"></div>
     <div class="item"><div class="label">Work Dir:</div><input id="workdir" type="text" onchange="config_changed('experiment', 'workdir')"></div>
     <div class="item" style="display: inline-flex;"><div class="label">Copy Data:</div><input id="copy_data" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'copy_data')"></div>
     <div class="item" style="display: inline-flex;"><div class="label">Sync Code:</div><input id="sync_code" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'sync_code')"></div>
     <div class="item data_dir_"><div class="label">Data Dir:</div><input id="data_dir" type="text" onchange="config_changed('experiment', 'data_dir')"></div>
     <div class="item data_subdir_"><div class="label">Data Subdir:</div><input id="data_subdir" type="text" onchange="config_changed('experiment', 'data_subdir')"></div>
     <div class="item ignore_dir_"><div class="label">Ignore Dir:</div><input id="ignore_dir" type="text" onchange="config_changed('experiment', 'ignore_dir')"></div>
-    <div class="item"><div class="label">Script:</div><textarea id="script" type="text" onchange="config_changed('experiment', 'script')"></textarea></div>
+    <div class="item"><div class="label">Script:</div><textarea id="script" type="text" rows="3" onchange="config_changed('experiment', 'script')"></textarea></div>
+    <div class="item"><div class="label">Arg Sweep:</div><textarea id="arg_sweep" type="text" rows="1" onchange="config_changed('experiment', 'arg_sweep')"></textarea></div>
     <div id="buttons">
         <div class="button" onclick="send_message({command: 'load'})">Load</div>
         <div class="button" onclick="send_message({command: 'save'})">Save</div>

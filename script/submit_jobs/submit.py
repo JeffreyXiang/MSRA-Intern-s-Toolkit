@@ -40,7 +40,7 @@ storage = Output(
 
 # Job
 job = command(
-    display_name=config['experiment']['job_name'],
+    display_name=config['experiment']['job_name'] if config['experiment']['job_name'] != "" else None,
     code=os.path.join(os.path.dirname(__file__), "entry_script"),
     command=f"python entry_script.py --workdir ${{{{outputs.storage}}}} --config .msra_intern_s_toolkit/userdata/temp/{os.path.basename(args.config)}",
     outputs={'storage': storage},

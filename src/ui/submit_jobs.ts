@@ -22,7 +22,8 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
                     break;
                 case 'update':
                     if (message.params.group == 'environment' && message.params.label == 'setup_script' ||
-                        message.params.group == 'experiment' && message.params.label == 'script') {
+                        message.params.group == 'experiment' && message.params.label == 'script' ||
+                        message.params.group == 'experiment' && message.params.label == 'arg_sweep') {
                         message.params.value = message.params.value.split('\n');
                     }
                     job.updateConfig(message.params.group, message.params.label, message.params.value);
@@ -37,9 +38,7 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
                     job.synchronize();
                     break;
                 case 'submit':
-                    job.synchronize().then((status) => {
-                        if (status == 'success' || status == 'skipped') job.submit();
-                    });
+                    job.submit();
                     break;
             }
         });
@@ -55,6 +54,9 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
                 }
                 if (typeof msg_params.config.experiment.script !== 'string') {
                     msg_params.config.experiment.script = msg_params.config.experiment.script.join('\n');
+                }
+                if (typeof msg_params.config.experiment.arg_sweep !== 'string') {
+                    msg_params.config.experiment.arg_sweep = msg_params.config.experiment.arg_sweep.join('\n');
                 }
             }
             let message = {command: 'setContent', params: msg_params};
