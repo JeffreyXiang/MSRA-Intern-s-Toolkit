@@ -72,7 +72,31 @@ Storage zone sets the working directory where your script will run. It must be s
 * **Data Subdur:** Shows if **Copy Data** is checked. Subdirectories of data directory to be copied. Use ';' to seperate multiple subdirectories.
 * **Ignore Dir:** Shows if **Sync Code** is checked. Directories to be ignored when syncing. Use ';' to seperate multiple directories.
 * **Scipt:** Script to run the experiment.
-
+* 
+    **Arg Sweep:** Arguments to sweep.
+    
+    The format is key-value pairs. Each key-value pair is in the format of `arg_name:arg_value1[sep]arg_value2...` or `(arg1_name,arg2_name...):(arg1_value1,arg2_value1...)[sep](arg1_value2,arg2_value2...)...`. The separator `[sep]` can be `,` or `\n`.
+    
+    The submitter will generate a job for each combination of different key-value pairs and replace the corresponding placeholder `${{arg_name}}` in the script and job name. For example, the following arg sweep will generate 4 jobs (indentation is for better reading, not required):
+    ```
+    (lr_G, lr_D):
+        (1e-4, 1e-4)
+        (1e-5, 1e-5)
+    batch_size: 32, 64
+    ```
+    equals to:
+    ```
+    (lr_G, lr_D, batch_size):
+        (1e-4, 1e-4, 32)
+        (1e-4, 1e-4, 64)
+        (1e-5, 1e-5, 32)
+        (1e-5, 1e-5, 64)
+    ```
+    If you are dealing with continuous integer arguments, you can use `start-end` to represent a range. For example, `id: 0, 2-4` is equivalent to `id: 0, 2, 3, 4`. 
+    
+    To avoid parsing if your argument value contains aforementioned separator, use `'` or `"` to wrap the value. For example, `arg: 'value1,value2'` or `arg: "value1,value2"`.
+    
+  
 ### GCR Tunnel
 
 Only available under local Windows and Mac machine.

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process'
 import * as fs from 'fs'
+import * as parsec from 'typescript-parsec'
 import {vscodeContext, outputChannel} from './extension'
 import {SubmitJobsView} from './ui/submit_jobs'
 import {showErrorMessageWithHelp, deepCopy} from './utils'
@@ -120,56 +121,179 @@ var resource: Resource;
 
 export var ui: SubmitJobsView;
 
-function isRange(s: string): boolean {
-    if (!s.includes('-')) return false;
-    if (s.indexOf('-') != s.lastIndexOf('-')) return false;
-    let start = s.slice(0, s.indexOf('-')).trim();
-    let end = s.slice(s.indexOf('-')+1).trim();
-    if (start.match(/[0-9]+/) && end.match(/[0-9]+/)) return true;
-    return false;
-}
 
-function parseRange(s: string): string[] {
-    let split = s.split('-');
-    let start = parseInt(split[0]);
-    let end = parseInt(split[1]);
-    let res = [];
-    for (let i = start; i <= end; i++) {
-        res.push(`${i}`);
+// Arg Sweep Parsing
+namespace ArgSweepParser {
+    enum TokenKind {
+        Literal,
+        Range,
+        Item,
+        Colon,
+        LParen,
+        RParen,
+        Separator,
+        Space,
     }
-    return res;
-}
 
-function parseArgSweep(arg_sweep: string | string[]): {name: string, value: string}[][] {
-    if (typeof arg_sweep === 'string') arg_sweep = [arg_sweep];
-    let arg_sweep_parsed: {name: string, values: string[]}[] = [];
-    for (let s of arg_sweep) {
-        let idx = s.indexOf(':');
-        if (idx == -1) {
+    const lexer = parsec.buildLexer([
+        [true, /^(['"])(?:(?=(\\?))\2.)*?\1/g, TokenKind.Literal],
+        [true, /^[0-9]+-[0-9]+/g, TokenKind.Range],
+        [true, /^[^\s,:\(\)]+/g, TokenKind.Item],
+        [true, /^:(?:[^\S\r\n]*(?:\r?\n|\r))?/g, TokenKind.Colon],
+        [true, /^\(/g, TokenKind.LParen],
+        [true, /^\)/g, TokenKind.RParen],
+        [true, /^,(?:[^\S\r\n]*(?:\r?\n|\r))?|^(?:\r?\n|\r)/g, TokenKind.Separator],
+        [false, /^[^\S\r\n]/g, TokenKind.Space],
+    ]);
+
+    const Item = parsec.rule<TokenKind, {type: string, values: string}>();
+    Item.setPattern(
+        parsec.apply(
+            parsec.alt(parsec.tok(TokenKind.Literal), parsec.tok(TokenKind.Item)),
+            (value) => {
+                let item;
+                if (value.kind == TokenKind.Literal) item = value.text.slice(1, -1);
+                else item = value.text;
+                return {type: 'Item', values: item};
+            }
+        )
+    );
+    
+    const Tuple = parsec.rule<TokenKind, {type: string, values: string[]}>();
+    Tuple.setPattern(
+        parsec.apply(
+            parsec.seq(
+                parsec.tok(TokenKind.LParen),
+                parsec.list_sc(Item, parsec.str(',')),
+                parsec.tok(TokenKind.RParen),
+            ),
+            (value) => {
+                let res: string[] = [];
+                for (let v of value[1]) {
+                    res.push(v.values);
+                }
+                return {type: 'Tuple', values: res};
+            }
+        )
+    );
+
+    const Range = parsec.rule<TokenKind, {type: string, values: string[]}>();
+    Range.setPattern(
+        parsec.apply(
+            parsec.tok(TokenKind.Range),
+            (value) => {
+                let s = value.text.split('-');
+                let start = parseInt(s[0]);
+                let end = parseInt(s[1]);
+                let res = [];
+                for (let i = start; i <= end; i++) {
+                    res.push(`${i}`);
+                }
+                return {type: 'Range', values: res};
+            }
+        )
+    );
+
+    const Argname = parsec.rule<TokenKind, {type: string, values: string | string[]}>();
+    Argname.setPattern(
+        parsec.apply(
+            parsec.seq(
+                parsec.alt(Item, Tuple),
+                parsec.tok(TokenKind.Colon),
+            ),
+            (value) => {
+                return {type: 'Argname', values: value[0].values};
+            }
+        )
+    );
+
+    const Parser = parsec.rule<TokenKind, {name: string | string[], values: (string | string[])[]}[]>();
+    Parser.setPattern(
+        parsec.apply(
+            parsec.seq(
+                parsec.rep_sc(
+                    parsec.alt_sc(
+                        parsec.kright(parsec.opt_sc(parsec.rep_sc(parsec.tok(TokenKind.Separator))), Argname),
+                        parsec.kleft(Tuple, parsec.tok(TokenKind.Separator)),
+                        parsec.kleft(Range, parsec.tok(TokenKind.Separator)),
+                        parsec.kleft(Item, parsec.tok(TokenKind.Separator)),
+                    ),
+                ),
+                parsec.opt_sc(parsec.alt_sc(Tuple, Range, Item)),
+                parsec.opt_sc(parsec.rep_sc(parsec.tok(TokenKind.Separator))),
+            ),
+            (value) => {
+                let res: {name: string | string[], values: (string | string[])[]}[] = [];
+                if (value[1]) value[0].push(value[1]);
+                for (let v of value[0]) {
+                    switch (v.type) {
+                        case 'Argname':
+                            res.push({name: v.values, values: []});
+                            break;
+                        case 'Tuple':
+                            res[res.length-1].values.push(v.values);
+                            break;
+                        case 'Range':
+                            res[res.length-1].values = res[res.length-1].values.concat(v.values);
+                            break;
+                        case 'Item':
+                            res[res.length-1].values.push(v.values);
+                            break;
+                    }
+                }
+                return res;
+            }
+        )
+    );
+
+    export function getAllTokens(s: string): parsec.Token<TokenKind>[] {
+        let tokens = [];
+        let token = lexer.parse(s);
+        while (token) {
+            tokens.push(token);
+            token = token.next;
+        }
+        return tokens;
+    }
+
+    export function parse(s: string): {name: string, value: string}[][] {
+        // Parse the input string into a list of arg-value pairs
+        let tokens = lexer.parse(s);
+
+        let res = parsec.expectEOF(Parser.parse(tokens));
+        if (res.successful === false || res.candidates.length != 1) {
+            console.log('msra_intern_s_toolkit.ArgSweepParser: Parsing failed');
+            console.log(res);
             showErrorMessageWithHelp(`Job submission failed. Invalid Arg Sweep format.`);
             return [];
         }
-        let name = s.slice(0, idx).trim();
-        let values = s.slice(idx+1).split(',').map((v) => v.trim())
-        let values_parsed: string[] = [];
-        for (let v of values) {
-            if (isRange(v)) values_parsed = values_parsed.concat(parseRange(v));
-            else values_parsed.push(v);
+        let args: {name: string | string[], values: (string | string[])[]}[] = res.candidates[0].result;
+        
+        // Generate all combinations
+        let all_combinations: {name: string, value: string}[][] = [];
+        let dfs = (idx: number, current: {name: string, value: string}[]) => {
+            if (idx == args.length) {
+                all_combinations.push(current);
+                return;
+            }
+            for (let v of args[idx].values) {
+                let current_ = deepCopy(current);
+                if (Array.isArray(args[idx].name)) {
+                    for (let i = 0; i < args[idx].name.length; i++) {
+                        current_.push({'name': args[idx].name[i], 'value': v[i]});
+                    }
+                }
+                else {
+                    current_.push({'name': args[idx].name, 'value': v});
+                }
+                dfs(idx+1, current_);
+            }
         }
-        arg_sweep_parsed.push({'name': name, 'values': values_parsed});
+        dfs(0, []);
+        console.log('msra_intern_s_toolkit.ArgSweepParser: Parsing succeeded');
+        console.log(all_combinations);
+        return all_combinations;
     }
-    let all_combinations: {name: string, value: string}[][] = [];
-    let dfs = (idx: number, current: {name: string, value: string}[]) => {
-        if (idx == arg_sweep_parsed.length) {
-            all_combinations.push(current);
-            return;
-        }
-        for (let v of arg_sweep_parsed[idx].values) {
-            dfs(idx+1, current.concat({'name': arg_sweep_parsed[idx].name, 'value': v}));
-        }
-    }
-    dfs(0, []);
-    return all_combinations;
 }
 
 export async function synchronize(jobcfg?: JobConfig) {
@@ -311,7 +435,7 @@ export async function submitToAML(cfgPath: string) {
                 vscode.window.showInformationMessage(`${info.displayName} submitted.`, 'View in AML Studio').then((choice) => {
                     if (choice == 'View in AML Studio') vscode.env.openExternal(vscode.Uri.parse(info.studioUrl));
                 });
-                fs.copyFileSync(workspacePath(cfgPath), `./userdata/jobs_history/${info.displayName}_${new Date().getTime()}.json`);
+                fs.copyFileSync(workspacePath(cfgPath), workspacePath(`./userdata/jobs_history/${info.displayName}_${new Date().getTime()}.json`));
                 resolve('success');
             }
         });
@@ -339,7 +463,7 @@ export async function submit() {
         if (sync == 'failed') return 'failed';
     }
 
-    let argSweep = cfg.experiment.arg_sweep.filter((v) => v.trim() != '');
+    let argSweep = cfg.experiment.arg_sweep.filter((v) => v.trim() != '').join('\n').trim();
     if (argSweep.length == 0) {
         return vscode.window.withProgress(
             {location: vscode.ProgressLocation.Notification, cancellable: false}, 
@@ -365,13 +489,13 @@ export async function submit() {
         );
     }
     else {
-        let argSweepParsed = parseArgSweep(argSweep);
+        let argSweepParsed = ArgSweepParser.parse(argSweep);
         if (argSweepParsed.length == 0) return 'failed';
         return vscode.window.withProgress(
             {location: vscode.ProgressLocation.Notification, cancellable: false}, 
             (async (progress) => {
                 progress.report({message: "Submitting sweep jobs...", increment: 0});
-                let increment = 100 / argSweepParsed.length;
+                let increment = 100 / (argSweepParsed.length + 1);
 
                 let passed = await checkCondaEnv(true);
                 if (!passed) return 'failed';
@@ -379,12 +503,13 @@ export async function submit() {
                 let cfgFileBase = `submit_jobs_${new Date().getTime()}_sweep`;
                 let cfgPaths = [];
                 for (let i = 0; i < argSweepParsed.length; i++) {
-                    let sweep_cfg = deepCopy(cfg);
+                    let sweep_cfg: JobConfig = deepCopy(cfg);
+                    sweep_cfg.experiment.arg_sweep = [];
                     for (let arg of argSweepParsed[i]) {
                         for (let j = 0; j < sweep_cfg.experiment.script.length; j++) {
-                            sweep_cfg.experiment.script[j] = sweep_cfg.experiment.script[j].replace(`\${{${arg.name}}}`, arg.value);
+                            sweep_cfg.experiment.script[j] = sweep_cfg.experiment.script[j].replaceAll(`\${{${arg.name}}}`, arg.value);
                         }
-                        sweep_cfg.experiment.job_name = sweep_cfg.experiment.job_name.replace(`\${{${arg.name}}}`, arg.value);
+                        sweep_cfg.experiment.job_name = sweep_cfg.experiment.job_name.replaceAll(`\${{${arg.name}}}`, arg.value);
                     }
                     let cfgPath = `./userdata/temp/${cfgFileBase}_${i}.json`;
                     saveWorkspaceFile(cfgPath, JSON.stringify(sweep_cfg, null, 4));
@@ -466,7 +591,6 @@ async function loadHistory() {
     });
     if (res == undefined) return;
     loadConfig(`./userdata/jobs_history/${res}.json`);
-    saveWorkspaceFile('./userdata/submit_jobs.json', JSON.stringify(config, null, 4));
     refreshUI({config: config});
 }
 
@@ -491,8 +615,9 @@ export async function load() {
         ignoreFocusOut: true
     });
     if (res == undefined) return;
-    if (res == 'History') loadHistory();
-    else if (res == 'Saved') loadSaved();
+    if (res == 'History') await loadHistory();
+    else if (res == 'Saved') await loadSaved();
+    saveWorkspaceFile('./userdata/submit_jobs.json', JSON.stringify(config, null, 4));
 }
 
 export async function save() {

@@ -167,5 +167,7 @@
 	"__metadata": {
 		"publisherDisplayName": "Jianfeng Xiang"
 	},
-	"dependencies": {}
+	"dependencies": {
+		"typescript-parsec": "^0.3.4"
+	}
 }
