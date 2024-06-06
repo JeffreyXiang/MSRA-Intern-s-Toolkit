@@ -28,7 +28,7 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken) {
         this.view = webviewView;
-        let codiconsUri = webviewView.webview.asWebviewUri(vscode.Uri.joinPath(vscodeContext.extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
+        let codiconsUri = webviewView.webview.asWebviewUri(vscode.Uri.joinPath(vscodeContext.extensionUri, 'html', 'codicons', 'codicon.css'));
         webviewView.webview.options = { enableScripts: true };
         webviewView.webview.html = this.html
             .replace('${{codicon_css_uri}}', codiconsUri.toString());
