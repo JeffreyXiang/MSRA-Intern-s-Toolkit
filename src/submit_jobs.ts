@@ -536,7 +536,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     // Replace io arguments in the script
     let script = config.experiment.script.join('\n');
     for (let i = 0; i < config.io.length; i++) {
-        script = script.replaceAll(`$\{\{${config.io[i].name}\}\}`, `${i}`); // Replace the io arguments with the index
+        script = script.replaceAll(`$\{\{${config.io[i].name}\}\}`, `$${i+1}`); // Replace the io arguments with the index
     }
     let command = ['.', './script.sh'].concat(io_args).join(' ');            // Input the io paths into the script
 
