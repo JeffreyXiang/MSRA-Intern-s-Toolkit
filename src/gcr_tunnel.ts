@@ -4,9 +4,10 @@ import * as process from 'process'
 import {vscodeContext, outputChannel} from './extension'
 import * as account from './account';
 import {showErrorMessageWithHelp} from './utils'
-import {globalPath, getFile, saveFile, exists} from './helper/file_utils'
+import {getFile, saveFile, exists} from './helper/file_utils'
 import {pidIsRunning, findNetProcessWin, findNetProcessMac, NetProtocol, NetState} from './helper/proc_utils'
 import {GCRTunnelView} from './ui/gcr_tunnel'
+import * as azure from './helper/azure'
 
 var supportedOS = ['win32', 'darwin'];
 
@@ -155,80 +156,85 @@ function reconnectTunnel(i: number, maxTrials: number) {
     }
 }
 
-function openBastionTunnel(i: number) {
+async function openBastionTunnel(i: number) {
     tunnels[i].state = 'bastion_opening';
     update(i);
-    let proc : cp.ChildProcessWithoutNullStreams;
-    switch (process.platform) {
-        case 'win32':
-            console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${account.domain}.${account.alias}`} -port ${tunnels[i].port}`);
-            outputChannel.appendLine(`[CMD] > pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${account.domain}.${account.alias}`} -port ${tunnels[i].port}`);
-            proc = cp.spawn('pwsh.exe', [globalPath('script/gcr_tunnel/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', `${account.domain}.${account.alias}`, '-port', `${tunnels[i].port}`]);
-            break;
-        case 'darwin':
-            console.log(`msra_intern_s_toolkit.openTunnel: Exec bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${account.domain}.${account.alias}`} -p ${tunnels[i].port}`);
-            outputChannel.appendLine(`[CMD] > bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${account.domain}.${account.alias}`} -p ${tunnels[i].port}`);
-            proc = cp.spawn('bash', [globalPath('script/gcr_tunnel/gdl.sh'), '-t', '-n', `${tunnels[i].sandboxID}`, '-a', `${account.domain}.${account.alias}`, '-p', `${tunnels[i].port}`]);
-            break;
-        default:
-            showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Platform not supported.`);
-            tunnels[i].state = 'bastion_opening_failed';
-            return;
+
+    const EX1   = '7ccdb8ae-4daf-4f0f-8019-e80665eb00d2'
+    const EX2   = '46da6261-2167-4e71-8b0d-f4a45215ce61'
+    const EX3   = '992cb282-dd69-41bf-8fcc-cc8801d28b58'
+    const BAST1 = 'GPU-Sandbox-VNET-bastion'
+    const BAST2 = 'GPU-Sandbox2-VNET-bastion'
+    const BAST3 = 'GPU-Sandbox3-VNET-bastion'
+    const RG1   = 'GPU-SANDBOX'
+    const RG2   = 'GPU-SANDBOX2'
+    const RG3   = 'GPU-SANDBOX3'
+
+    let name: string;
+    let subscription: string;
+    let resourceGroup: string;
+    if (tunnels[i].sandboxID < 1000) {
+        name = BAST1;
+        subscription = EX1;
+        resourceGroup = RG1;
     }
-    let timeout = setTimeout(((i) => () => {
-        proc.kill();
-        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Command timeout.`);
+    else if (tunnels[i].sandboxID >= 1000 && tunnels[i].sandboxID <= 1115) {
+        name = BAST1;
+        subscription = EX2;
+        resourceGroup = RG1;
+    }
+    else if (tunnels[i].sandboxID >= 1116 && tunnels[i].sandboxID <= 1215) {
+        name = BAST2;
+        subscription = EX2;
+        resourceGroup = RG2;
+    }
+    else if (tunnels[i].sandboxID >= 1400 && tunnels[i].sandboxID <= 1767) {
+        name = BAST3;
+        subscription = EX2;
+        resourceGroup = RG3;
+    }
+    else if (tunnels[i].sandboxID >= 2000 && tunnels[i].sandboxID <= 2999) {
+        name = BAST1;
+        subscription = EX3;
+        resourceGroup = RG1;
+    }
+    else if (tunnels[i].sandboxID >= 3001 && tunnels[i].sandboxID <= 3068) {
+        name = BAST3;
+        subscription = EX2;
+        resourceGroup = RG3;
+    }
+    else if (tunnels[i].sandboxID >= 4001 && tunnels[i].sandboxID <= 4020) {
+        name = BAST3;
+        subscription = EX2;
+        resourceGroup = RG3;
+    }
+    else {
+        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Sandbox ID out of supported range.`);
         tunnels[i].state = 'bastion_opening_failed';
         update(i);
-    })(i), 60000);
-    proc.on('error', ((i) => (err) => {
-        proc.kill();
-        clearTimeout(timeout);
-        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Powershell spawning failed.`);
+        throw 'sandbox_id_out_of_range';
+    }
+    let targetResourceID = `/subscriptions/${subscription}/resourceGroups/${resourceGroup}/providers/Microsoft.Compute/virtualMachines/GCRAZGDL${tunnels[i].sandboxID.toString().padStart(4, '0')}`;
+
+    try {
+        await azure.network.bastion.tunnel(
+            name,
+            targetResourceID,
+            22,
+            tunnels[i].port,
+            subscription,
+            resourceGroup,
+        );
+    } catch (error) {
+        if (error == 'azure_bastion_ext_not_installed') {
+            showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Azure Bastion extension not installed.`);
+        }
+        else {
+            showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. ${error}`);
+        }
         tunnels[i].state = 'bastion_opening_failed';
         update(i);
-    })(i))
-    proc.stdout.on('data', (data) => {
-        outputChannel.appendLine('[CMD OUT] ' + data);
-        console.log(`msra_intern_s_toolkit.openTunnel: ${data}`);
-    });
-    proc.stderr.on('data', ((i) => (data) => {
-        let sdata = String(data);
-        outputChannel.appendLine('[CMD ERR] ' + sdata);
-        console.error(`msra_intern_s_toolkit.openTunnel: ${sdata}`);
-        if (sdata.includes('SecurityError')) {
-            proc.kill();
-            clearTimeout(timeout);
-            showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Powershell script forbidden.`);
-            tunnels[i].state = 'bastion_opening_failed';
-            update(i);
-        }
-        else if (sdata.includes('Tunnel is ready')) {
-            proc.kill();
-            clearTimeout(timeout);
-        }
-    })(i));
-    proc.on('exit', ((i) => (code) => {
-        clearTimeout(timeout);
-        // console.log(`msra_intern_s_toolkit.openTunnel: Process exited with ${code}`);
-        if (code) {
-            switch (code) {
-                case 2:
-                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Azure CLI not installed.`);
-                    break;
-                case 3:
-                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. az ssh extension not installed.`);
-                    break;
-                case 4:
-                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Keypath not found.`);
-                    break;
-                default:
-                    showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. code ${code}`);
-            }
-            tunnels[i].state = 'bastion_opening_failed';
-            update(i);
-        }
-    })(i));
+    }
 }
 
 function openSSHTunnel(i: number) {
