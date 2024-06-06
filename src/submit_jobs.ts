@@ -1,54 +1,62 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process'
-import * as fs from 'fs'
 import * as parsec from 'typescript-parsec'
 import {vscodeContext, outputChannel} from './extension'
 import {SubmitJobsView} from './ui/submit_jobs'
 import {showErrorMessageWithHelp, deepCopy} from './utils'
-import {globalPath, workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles} from './helper/file_utils'
-import * as azureml from './helper/azureml'
+import {globalPath, workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles, exists, saveFile, getFile} from './helper/file_utils'
+import * as account from './account'
+import * as azure from './helper/azure'
 
 class ClusterConfig {
-    workspace: string = ''
-    workspace_subscription_id: string = ''
-    workspace_resource_group: string = ''
-    virtual_cluster: string = 'msroctovc'
-    virtual_cluster_subscription_id: string = ''
-    virtual_cluster_resource_group: string = ''
-    instance_type: string = ''
-    node_count: number = 1
-    sla_tier: string = 'Basic'
+    workspace: string = '';
+    virtual_cluster: string = 'msroctovc';
+    instance_type: string = '';
+    node_count: number = 1;
+    sla_tier: string = 'Basic';
 }
 
-class StorageConfig {
-    datastore_name: string = ''
-    container_name: string = ''
-    account_name: string = ''
-    account_key: string = ''
-    sas_token: string = ''
+enum IOMode {
+    RO_MOUNT = 'ro_mount',
+    RW_MOUNT = 'rw_mount',
+    DOWNLOAD = 'download',
+    UPLOAD = 'upload',
+}
+
+const IOModeMap = new Map<string, IOMode>([
+    ['Read Only Mount', IOMode.RO_MOUNT],
+    ['Read Write Mount', IOMode.RW_MOUNT],
+    ['Download', IOMode.DOWNLOAD],
+    ['Upload', IOMode.UPLOAD],
+]);
+
+class IOConfig {
+    name: string = '';
+    datastore: string = '';
+    path: string = '';
+    mode: IOMode = IOMode.RW_MOUNT;
+}
+
+class SynchronizationConfig {
+    target: string = '';
+    ignore_dir: string = '';
 }
 
 class EnvironmentConfig {
-    docker_image: string = ''
-    setup_script: string[] = []
+    image: string = '';
 }
 
 class ExperimentConfig {
-    name: string = ''
-    job_name: string = ''
-    workdir: string = ''
-    copy_data: boolean = true
-    sync_code: boolean = true
-    data_dir: string = ''
-    data_subdir: string = ''
-    ignore_dir: string = ''
-    script: string[] = []
-    arg_sweep: string[] = []
+    name: string = '';
+    job_name: string = '';
+    script: string[] = [];
+    arg_sweep: string[] = [];
 }
 
 export class JobConfig {
     cluster: ClusterConfig = new ClusterConfig();
-    storage: StorageConfig = new StorageConfig();
+    io: IOConfig[] = [];
+    synchronization: SynchronizationConfig = new SynchronizationConfig();
     environment: EnvironmentConfig = new EnvironmentConfig();
     experiment: ExperimentConfig = new ExperimentConfig();
     
@@ -57,67 +65,87 @@ export class JobConfig {
 
         if (init.cluster !== undefined) {
             if (init.cluster.workspace !== undefined) this.cluster.workspace = init.cluster.workspace;
-            if (init.cluster.workspace_subscription_id !== undefined) this.cluster.workspace_subscription_id = init.cluster.workspace_subscription_id;
-            if (init.cluster.workspace_resource_group !== undefined) this.cluster.workspace_resource_group = init.cluster.workspace_resource_group;
             if (init.cluster.virtual_cluster !== undefined) this.cluster.virtual_cluster = init.cluster.virtual_cluster;
-            if (init.cluster.virtual_cluster_subscription_id !== undefined) this.cluster.virtual_cluster_subscription_id = init.cluster.virtual_cluster_subscription_id;
-            if (init.cluster.virtual_cluster_resource_group !== undefined) this.cluster.virtual_cluster_resource_group = init.cluster.virtual_cluster_resource_group;
             if (init.cluster.instance_type !== undefined) this.cluster.instance_type = init.cluster.instance_type;
             if (init.cluster.node_count !== undefined) this.cluster.node_count = init.cluster.node_count;
             if (init.cluster.sla_tier !== undefined) this.cluster.sla_tier = init.cluster.sla_tier;
         }
 
-        if (init.storage !== undefined) {
-            if (init.storage.datastore_name !== undefined) this.storage.datastore_name = init.storage.datastore_name;
-            if (init.storage.container_name !== undefined) this.storage.container_name = init.storage.container_name;
-            if (init.storage.account_name !== undefined) this.storage.account_name = init.storage.account_name;
-            if (init.storage.account_key !== undefined) this.storage.account_key = init.storage.account_key;
-            if (init.storage.sas_token !== undefined) this.storage.sas_token = init.storage.sas_token;
+        if (init.io !== undefined) {
+            for (let i of init.io) {
+                let io = new IOConfig();
+                if (i.name !== undefined) io.name = i.name;
+                if (i.datastore !== undefined) io.datastore = i.datastore;
+                if (i.path !== undefined) io.path = i.path;
+                if (i.mode !== undefined) io.mode = i.mode;
+                this.io.push(io);
+            }
+        }
+
+        if (init.synchronization !== undefined) {
+            if (init.synchronization.target !== undefined) this.synchronization.target = init.synchronization.target;
+            if (init.synchronization.ignore_dir !== undefined) this.synchronization.ignore_dir = init.synchronization.ignore_dir;
         }
 
         if (init.environment !== undefined) {
-            if (init.environment.docker_image !== undefined) this.environment.docker_image = init.environment.docker_image;
-            if (init.environment.setup_script !== undefined) this.environment.setup_script = init.environment.setup_script;
+            if (init.environment.image !== undefined) this.environment.image = init.environment.image;
         }
 
         if (init.experiment !== undefined) {
             if (init.experiment.name !== undefined) this.experiment.name = init.experiment.name;
             if (init.experiment.job_name !== undefined) this.experiment.job_name = init.experiment.job_name;
-            if (init.experiment.workdir !== undefined) this.experiment.workdir = init.experiment.workdir;
-            if (init.experiment.copy_data !== undefined) this.experiment.copy_data = init.experiment.copy_data;
-            if (init.experiment.sync_code !== undefined) this.experiment.sync_code = init.experiment.sync_code;
-            if (init.experiment.data_dir !== undefined) this.experiment.data_dir = init.experiment.data_dir;
-            if (init.experiment.data_subdir !== undefined) this.experiment.data_subdir = init.experiment.data_subdir;
-            if (init.experiment.ignore_dir !== undefined) this.experiment.ignore_dir = init.experiment.ignore_dir;
             if (init.experiment.script !== undefined) this.experiment.script = init.experiment.script;
             if (init.experiment.arg_sweep !== undefined) this.experiment.arg_sweep = init.experiment.arg_sweep;
         }
 
         // v1.2 convertion
-        if (typeof this.environment.setup_script === 'string') this.environment.setup_script = (this.environment.setup_script as string).split('\n');
         if (typeof this.experiment.script === 'string') this.experiment.script = (this.experiment.script as string).split('\n');
 
-        // v1.3 convertion
-        if (init.experiment.sas_token) this.storage.sas_token = init.experiment.sas_token;
+        // v2 convertion
+        if (init.environment !== undefined && init.environment.docker_image !== undefined) {
+            this.environment.image = init.environment.docker_image;
+        }
     }
 }
 
 export class Resource {
-    workspaces: azureml.Workspace[] = [];
-    virtualClusters: azureml.VirtualCluster[] = [];
-    images: azureml.Image[] = [];
+    workspaces: azure.ml.Workspace[] = [];
+    virtualClusters: azure.ml.VirtualCluster[] = [];
+    images: azure.ml.Image[] = [];
+    datastores: azure.ml.Datastore[] = [];
 
     constructor(init?: any) {
         if (init === undefined) return;
 
-        if (init.workspaces !== undefined) this.workspaces = init.workspaces;
-        if (init.virtualClusters !== undefined) this.virtualClusters = init.virtualClusters;
-        if (init.images !== undefined) this.images = init.images;
+        if (init.workspaces !== undefined) this.workspaces = init.workspaces.map(
+            (v: any) => new azure.ml.Workspace(v.id, v.name, v.subscriptionId, v.resourceGroup)
+        );
+        if (init.virtualClusters !== undefined) this.virtualClusters = init.virtualClusters.map(
+            (v: any) => new azure.ml.VirtualCluster(v.id, v.subscriptionId, v.resourceGroup, v.name, v.location)
+        );
+        if (init.images !== undefined) this.images = init.images.map(
+            (v: any) => new azure.ml.Image(v.name, v.description)
+        );
+        if (init.datastores !== undefined) this.datastores = init.datastores.map(
+            (v: any) => new azure.ml.Datastore(
+                v.name, 
+                new azure.storage.BlobContainer(
+                    (v.blobContainer.storageAcount.hasOwnProperty('key')) ?
+                        azure.storage.StorageAccount.fromKey(v.blobContainer.storageAcount.name, v.blobContainer.storageAcount.key) :
+                        azure.storage.StorageAccount.fromSubscription(
+                            v.blobContainer.storageAcount.id, v.blobContainer.storageAcount.name,
+                            v.blobContainer.storageAcount.subscriptionId, v.blobContainer.storageAcount.resourceGroup,
+                            v.blobContainer.storageAcount.uri),
+                    v.blobContainer.name
+                ),
+                v.authType
+            )
+        );
     }
 }
 
-var config: JobConfig;
-var resource: Resource;
+var config: JobConfig = new JobConfig();
+var resource: Resource = new Resource();
 
 export var ui: SubmitJobsView;
 
@@ -296,195 +324,333 @@ namespace ArgSweepParser {
     }
 }
 
+async function getComputeResources() {
+    return vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, cancellable: false},
+        (() => (async (progress) => {
+            progress.report({message: "Fetching compute resources info..."});
+            let res;
+            try {
+                res = await Promise.all([azure.ml.REST.getWorkspaces(), azure.ml.REST.getVirtualClusters(), azure.ml.REST.getImages()]);
+            } catch (err) {
+                showErrorMessageWithHelp('Failed to get compute resources.');
+                return;
+            }
+            resource.workspaces = res[0];
+            resource.virtualClusters = res[1];
+            resource.images = res[2];
+            azure.ml.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
+            saveResourceCache();
+        }))()
+    );
+}
+
+async function selectDatastore(prompt?: string) {
+    let datastores = resource.datastores.map((v) => v.name);
+    let selected = await vscode.window.showQuickPick(datastores, {title: prompt ? prompt : 'Select datastore'});
+    if (selected === undefined) return;
+    return resource.datastores.find((v) => v.name == selected);
+}
+
+async function setDatastoreAuth(datastore: azure.ml.Datastore, overwrite: boolean = true) {
+    let selected = await vscode.window.showQuickPick(['Account Key', 'Shared Access Signature', 'Identity'], {title: 'Select authentication method'});
+    if (selected === undefined) return;
+    switch (selected) {
+        case 'Account Key':
+            if (!overwrite && datastore.blobContainer.storageAccount.key) {
+                datastore.authType = 'key';
+            }
+            else {
+                let key = await vscode.window.showInputBox({prompt: 'Enter the account key'});
+                if (key === undefined) return;
+                datastore.authType = 'key';
+                datastore.blobContainer.storageAccount.key = key;
+            }
+            break;
+        case 'Shared Access Signature':
+            datastore.authType = 'sas';
+            break;
+        case 'Identity':
+            datastore.authType = 'identity';
+            break;
+    }
+    return datastore;
+}
+
+async function newDatastore() {
+    // Get the way to connect to the storage account
+    let selected = await vscode.window.showQuickPick(['Account Key', 'User Identity'], {title: 'Select connection method to Azure Storage Account'});
+    if (selected === undefined) return;
+    let storageAcount: azure.storage.StorageAccount;
+    if (selected == 'Account Key') {
+        let name = await vscode.window.showInputBox({prompt: 'Enter the name of the storage account'});
+        if (name === undefined) return;
+        let key = await vscode.window.showInputBox({prompt: 'Enter the key of the storage account'});
+        if (key === undefined) return;
+        storageAcount = azure.storage.StorageAccount.fromKey(name, key);
+    }
+    else {
+        // Get subscriptions
+        let subscriptions = await vscode.window.withProgress(
+            {location: vscode.ProgressLocation.Notification, cancellable: false},
+            (async (progress) => {
+                progress.report({message: "Fetching subscriptions..."});
+                try {
+                    return await azure.account.getSubscriptions();
+                } catch (err) {
+                    showErrorMessageWithHelp('Failed to get subscriptions.');
+                }
+            })
+        );
+        if (subscriptions === undefined) return;
+        selected = await vscode.window.showQuickPick(subscriptions.map((v) => v.name), {title: 'Select subscription to get workspaces'});
+        if (selected === undefined) return;
+        let subscription = subscriptions.find((v) => v.name == selected)!;
+        // Get Storage Accounts
+        let storageAcounts = await vscode.window.withProgress(
+            {location: vscode.ProgressLocation.Notification, cancellable: false},
+            (async (progress) => {
+                progress.report({message: "Fetching storage accounts..."});
+                try {
+                    return await azure.storage.getAccounts(subscription.id);
+                } catch (err) {
+                    showErrorMessageWithHelp('Failed to get storage accounts.');
+                }
+            })
+        );
+        if (storageAcounts === undefined) return;
+        selected = await vscode.window.showQuickPick(storageAcounts.map((v) => v.name), {title: 'Select storage account'});
+        if (selected === undefined) return;
+        storageAcount = storageAcounts.find((v) => v.name == selected)!;
+    }
+    // Get Blob Containers
+    let containers = await vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, cancellable: false},
+        (async (progress) => {
+            progress.report({message: "Fetching blob containers..."});
+            try {
+                return await storageAcount.getContainers();
+            } catch (err) {
+                showErrorMessageWithHelp('Failed to get containers.');
+            }
+        })
+    );
+    if (containers === undefined) return;
+    selected = await vscode.window.showQuickPick(containers.map((v) => v.name), {title: 'Select container'});
+    if (selected === undefined) return;
+    let container = containers.find((v) => v.name == selected)!;
+    // Get the name of the new datastore
+    let name = await vscode.window.showInputBox({prompt: 'Enter the name of the new datastore'});
+    if (name === undefined) return;
+    // Set the auth type
+    let newDatastore = await setDatastoreAuth(new azure.ml.Datastore(name, container, 'identity'), false);
+    if (newDatastore === undefined) return;
+    // Create the datastore
+    resource.datastores.push(newDatastore);
+    return 'success';
+}
+
+async function updateDatastore() {
+    let datastore = await selectDatastore('Select the datastore to update');
+    if (datastore === undefined) return;
+    let updated = await setDatastoreAuth(datastore, true);
+    if (updated === undefined) return;
+    return 'success';
+}
+
+async function deleteDatastore() {
+    let datastore = await selectDatastore('Select the datastore to delete');
+    if (datastore === undefined) return;
+    let idx = resource.datastores.indexOf(datastore);
+    resource.datastores.splice(idx, 1);
+    return 'success';
+}
+
+export async function manageDatastores() {
+    let selected = await vscode.window.showQuickPick(['New', 'Update', 'Delete'], {title: 'Select action'});
+    if (selected === undefined) return;
+    let status;
+    switch (selected) {
+        case 'New':
+            status = await newDatastore();
+            break;
+        case 'Update':
+            status = await updateDatastore();
+            break;
+        case 'Delete':
+            status = await deleteDatastore();
+            break;
+    }
+    if (status === 'success') {
+        saveResourceCache();
+        vscode.window.showInformationMessage('Datastore updated.');
+        refreshUI({resource: resource});
+    }
+}
+
 export async function synchronize(jobcfg?: JobConfig) {
     let cfg: JobConfig = jobcfg ? jobcfg : deepCopy(config);
+    if (cfg.synchronization.target == '') {
+        vscode.window.showInformationMessage('Please select a target io.');
+        return 'failed';
+    }
+    let targetIO = cfg.io.find((v) => v.name == cfg.synchronization.target);
+    if (!targetIO) {
+        showErrorMessageWithHelp('Failed to synchronize code. Target io not found.');
+        return 'failed';
+    }
+    let targetDatastore = resource.datastores.find((v) => v.name == targetIO!.datastore);
+    if (!targetDatastore) {
+        showErrorMessageWithHelp('Failed to synchronize code. Datastore of the target io not found.');
+        return 'failed';
+    }
     return vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false},
         (async (progress) => {
             progress.report({message: "Synchronizing code...", increment: 0});
-            return new Promise<string> (resolve => {
-                let source = `"${workspacePath('../*')}"`;
-                let destination = `"${cfg.storage.sas_token.split('?')[0]}/${cfg.experiment.workdir}/?${cfg.storage.sas_token.split('?')[1]}"`;
-                let args = ['copy', source, destination, '--recursive'];
-                if (cfg.experiment.ignore_dir) args.push('--exclude-path', `".msra_intern_s_toolkit;.git;${cfg.experiment.ignore_dir}"`);
-                else args.push('--exclude-path', '".msra_intern_s_toolkit;.git"');
-                outputChannel.appendLine(`[CMD] > azcopy ${args.join(' ')}`);
-                let proc = cp.spawn('azcopy', args, {shell: true});
-                let timeout = setTimeout(() => {
-                    proc.kill();
-                    showErrorMessageWithHelp(`Failed to synchronize code. Command timeout.`);
-                    resolve('timeout');
-                }, 60000);
-                let lastPercent = 0;
-                proc.stdout.on('data', (data) => {
-                    let sdata = String(data);
-                    outputChannel.append('[CMD OUT] ' + sdata);
-                    console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
-                    if (sdata.includes('Authentication failed')) {
-                        proc.kill();
-                        clearTimeout(timeout);
-                        showErrorMessageWithHelp(`Failed to synchronize code. SAS authentication failed.`);
-                        resolve('failed');
-                    }
-                    else if (/[0-9.]+\s%,\s[0-9]+\sDone,\s[0-9]+\sFailed,\s[0-9]+\sPending,\s[0-9]+\sSkipped,\s[0-9]+\sTotal,\s2-sec\sThroughput\s\(Mb\/s\):\s[0-9.]+/g.test(sdata)) {
-                        let percent = Number(sdata.split('%')[0]);
-                        progress.report({increment: percent - lastPercent});
-                        lastPercent = percent;
-                    }
-                });
-                proc.stderr.on('data', (data) => {
-                    let sdata = String(data);
-                    outputChannel.append('[CMD ERR] ' + sdata);
-                    console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
-                    if (sdata.includes('not recognized') || sdata.includes('command not found')) {
-                        proc.kill();
-                        clearTimeout(timeout);
-                        showErrorMessageWithHelp(`Failed to synchronize code. Azcopy not found.`);
-                        resolve('failed');
-                    }
-                    else if (sdata.includes('Permission denied')) {
-                        proc.kill();
-                        clearTimeout(timeout);
-                        showErrorMessageWithHelp(`Failed to synchronize code. Permission denied.`);
-                        resolve('failed');
-                    }
-                });
-                proc.on('exit', (code) => {
-                    clearTimeout(timeout);
-                    if (code == 0) {
-                        vscode.window.showInformationMessage(`Code synchronized.`);
-                        resolve('success');
-                    } else if (code != null) {
-                        vscode.window.showErrorMessage ('azcopy failed with exit code ' + code);
-                        resolve('failed');
-                    }
-                    else resolve('failed');
-                });
-            });
+            try {
+                await azure.storage.upload(
+                    workspacePath('../*'),
+                    targetIO!.path,
+                    targetDatastore!.blobContainer,
+                    {
+                        recursive: true,
+                        excludePath: `.msra_intern_s_toolkit;.git;${cfg.synchronization.ignore_dir}`,
+                    },
+                    (increment) => progress.report({increment: increment})
+                )
+            } catch (err) {
+                if (err == 'permission_denied') showErrorMessageWithHelp('Failed to synchronize code. Permission denied.');
+                else showErrorMessageWithHelp(`Failed to synchronize code. Code: ${err}`);
+                return 'failed';
+            }
+            vscode.window.showInformationMessage('Code synchronized.');
+            return 'success';
         })
     );
 }
 
-export async function uploadConfig(cfgPath: string, destination: string) {
-    return await new Promise<string> (resolve1 => {
-        let source = `"${workspacePath(cfgPath)}"`;
-        let args = ['copy', source, destination];
-        outputChannel.appendLine(`[CMD] > azcopy ${args.join(' ')}`);
-        let proc = cp.spawn('azcopy', args, {shell: true});
-        let timeout = setTimeout(() => {
-            proc.kill();
-            showErrorMessageWithHelp(`Failed to submit the job. Command timeout.`);
-            resolve1('timeout');
-        }, 60000);
-        proc.stdout.on('data', (data) => {
-            let sdata = String(data);
-            outputChannel.append('[CMD OUT] ' + sdata);
-            console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
-            if (sdata.includes('Authentication failed')) {
-                proc.kill();
-                clearTimeout(timeout);
-                showErrorMessageWithHelp(`Failed to submit the job. SAS authentication failed.`);
-                resolve1('failed');
-            }
-        });
-        proc.stderr.on('data', (data) => {
-            let sdata = String(data);
-            outputChannel.append('[CMD ERR] ' + sdata);
-            console.log(`msra_intern_s_toolkit.synchronize: ${sdata}`);
-            if (sdata.includes('not recognized') || sdata.includes('command not found')) {
-                proc.kill();
-                clearTimeout(timeout);
-                showErrorMessageWithHelp(`Failed to submit the job. Azcopy not found.`);
-                resolve1('failed');
-            }
-            else if (sdata.includes('Permission denied')) {
-                proc.kill();
-                clearTimeout(timeout);
-                showErrorMessageWithHelp(`Failed to submit the job. Permission denied.`);
-                resolve1('failed');
-            }
-        });
-        proc.on('exit', (code) => {
-            clearTimeout(timeout);
-            if (code == 0) {
-                resolve1('success');
-            } else if (code != null) {
-                vscode.window.showErrorMessage ('azcopy failed with exit code ' + code);
-                resolve1('failed');
-            }
-            else resolve1('failed');
-        });
-    });
-}
+export async function submitToAML(config: JobConfig, progress?: (increment: number) => void) {
+    // Divide the io into inputs and outputs
+    let inputs: azure.ml.job.Input[] = [];
+    let outputs: azure.ml.job.Output[] = [];
+    let datastores: azure.ml.Datastore[] = [];
+    let io_args: string[] = [];
+    for (let io of config.io) {
+        let datastore = resource.datastores.find((v) => v.name == io.datastore);
+        if (!datastore) {
+            showErrorMessageWithHelp(`Failed to submit the job. Datastore ${io.datastore} not found.`);
+            return 'failed';
+        }
+        if (!datastores.includes(datastore)) datastores.push(datastore);
+        if ([IOMode.RO_MOUNT, IOMode.DOWNLOAD].includes(io.mode)) {
+            inputs.push(new azure.ml.job.Input(io.name, datastore.getUri(io.path), 'uri_folder', io.mode));
+            io_args.push(`$\{\{inputs.${io.name}\}\}`);
+        }
+        else if ([IOMode.RW_MOUNT, IOMode.UPLOAD].includes(io.mode)) {
+            outputs.push(new azure.ml.job.Output(io.name, datastore.getUri(io.path), 'uri_folder', io.mode));
+            io_args.push(`$\{\{outputs.${io.name}\}\}`);
+        }
+    }
 
-export async function submitToAML(cfgPath: string) {
-    return new Promise<string> (resolve => {
-        outputChannel.appendLine(`[CMD] > conda run -n msra-intern-s-toolkit python "${globalPath('script/submit_jobs/submit.py')}" --config "${workspacePath(cfgPath)}"`);
-        let proc = cp.spawn('conda', ['run', '-n', 'msra-intern-s-toolkit', 'python', `"${globalPath('script/submit_jobs/submit.py')}"`, '--config', `"${workspacePath(cfgPath)}"`], {shell: true});
-        let timeout = setTimeout(() => {
-            proc.kill();
-            showErrorMessageWithHelp(`Failed to submit the job. Command timeout.`);
-            resolve('timeout');
-        }, 60000);
-        proc.stdout.on('data', (data) => {
-            let sdata = String(data);
-            outputChannel.appendLine('[CMD OUT] ' + sdata);
-            console.log(`msra_intern_s_toolkit.submit: ${sdata}`);
-            if (sdata.includes('Job Submitted')) {
-                let info = JSON.parse(sdata.slice(sdata.indexOf('{')));
-                vscode.window.showInformationMessage(`${info.displayName} submitted.`, 'View in AML Studio').then((choice) => {
-                    if (choice == 'View in AML Studio') vscode.env.openExternal(vscode.Uri.parse(info.studioUrl));
-                });
-                fs.copyFileSync(workspacePath(cfgPath), workspacePath(`./userdata/jobs_history/${info.displayName}_${new Date().getTime()}.json`));
-                resolve('success');
-            }
-        });
-        proc.stderr.on('data', (data) => {
-            let sdata = String(data);
-            outputChannel.appendLine('[CMD ERR] ' + sdata);
-            console.error(`msra_intern_s_toolkit.submit: ${sdata}`);
-        });
-        proc.on('exit', (code) => {
-            clearTimeout(timeout);
-            if (code != undefined && code != 0) {
-                showErrorMessageWithHelp(`Failed to submit the job. Unknown reason. code ${code}`);
-                resolve('failed');
-            }
-            console.log(`msra_intern_s_toolkit.submit: Process exited with ${code}`);
-        });
+    // Replace io arguments in the script
+    let script = config.experiment.script.join('\n');
+    for (let i = 0; i < config.io.length; i++) {
+        script = script.replaceAll(`$\{\{${config.io[i].name}\}\}`, `${i}`); // Replace the io arguments with the index
+    }
+    let command = ['.', './script.sh'].concat(io_args).join(' ');            // Input the io paths into the script
+
+    // Create the temp paths
+    let tempDir = `./temp/submit_jobs/${new Date().getTime()}`;
+    let scriptPath = `${tempDir}/script.sh`;
+    let datastorePaths = datastores.map((v) => `${tempDir}/datastore_${v.name}.yaml`);
+    let jobPath = `${tempDir}/job.yaml`;
+
+    // Create the datastore specs
+    let datastoreSpecPromises = await Promise.allSettled(datastores.map((v) => azure.ml.datastore.buildBlobContainerSpec(v)));
+    let errorMsgs = [];
+    for (let i = 0; i < datastoreSpecPromises.length; i++) {
+        if (datastoreSpecPromises[i].status == 'rejected') {
+            errorMsgs.push(`  ${datastores[i].name}: ${(datastoreSpecPromises[i] as PromiseRejectedResult).reason}`);
+        }
+    }
+    if (errorMsgs.length > 0) {
+        showErrorMessageWithHelp(`Failed to submit the job. Failed to build datastore specs for:\n${errorMsgs.join('\n')}`);
+        throw 'failed_to_build_datastore_specs';
+    }
+    let datastoreSpecs = datastoreSpecPromises.map((v) => (v as PromiseFulfilledResult<azure.ml.datastore.Spec>).value);
+
+    // Create the job spec
+    let jobSpec = azure.ml.job.buildSingulaitySpec(
+        config.experiment.job_name,
+        config.experiment.name,
+        workspacePath(scriptPath),
+        command,
+        inputs,
+        outputs,
+        resource.images.find((v) => v.name == config.environment.image)!,
+        resource.virtualClusters.find((v) => v.name == config.cluster.virtual_cluster)!,
+        config.cluster.instance_type,
+        config.cluster.node_count,
+        config.cluster.sla_tier
+    );
+    
+    // Save temp files
+    saveWorkspaceFile(scriptPath, script);
+    for (let i = 0; i < datastores.length; i++) {
+        saveWorkspaceFile(datastorePaths[i], datastoreSpecs[i].yaml());
+    }
+    saveWorkspaceFile(jobPath, jobSpec.yaml());
+
+    // Find the workspace
+    let workspace = resource.workspaces.find((v) => v.name == config.cluster.workspace);
+    if (!workspace) {
+        showErrorMessageWithHelp(`Failed to submit the job. Workspace ${config.cluster.workspace} not found.`);
+        throw 'failed_to_find_workspace';
+    }
+
+    // Create datastores
+    let datastoreCreatePromises = await Promise.allSettled(datastorePaths.map((v) => azure.ml.datastore.create(workspace!, workspacePath(v))));
+    errorMsgs = [];
+    for (let i = 0; i < datastoreCreatePromises.length; i++) {
+        if (datastoreCreatePromises[i].status == 'rejected') {
+            errorMsgs.push(`  ${datastores[i].name}`);
+        }
+    }
+    if (errorMsgs.length > 0) {
+        showErrorMessageWithHelp(`Failed to submit the job. Failed to create datastores for:\n${errorMsgs.join('\n')}`);
+        throw 'failed_to_create_datastores';
+    }
+    if (progress) { progress(50); }
+
+    // Create the job
+    let jobInfo: any;
+    try {
+        jobInfo = await azure.ml.job.create(workspace, workspacePath(jobPath));
+    } catch (err) {
+        showErrorMessageWithHelp('Failed to submit the job. Failed to create the job.');
+        throw 'failed_to_create_job';
+    }
+    if (progress) { progress(50); }
+
+    // Show the job info and save the config
+    vscode.window.showInformationMessage(`${jobInfo.display_name} submitted.`, 'View in AML Studio').then((choice) => {
+        if (choice == 'View in AML Studio') vscode.env.openExternal(vscode.Uri.parse(jobInfo.services.Studio.endpoint));
     });
+    saveWorkspaceFile(`./userdata/jobs_history/${jobInfo.display_name}_${new Date().getTime()}.json`, JSON.stringify(config, null, 4));
+    return 'success';
 }
 
 export async function submit() {
     let cfg: JobConfig = deepCopy(config);
-
-    if (cfg.experiment.sync_code) {
-        let sync = await synchronize(cfg);
-        if (sync == 'failed') return 'failed';
-    }
-
     let argSweep = cfg.experiment.arg_sweep.filter((v) => v.trim() != '').join('\n').trim();
     if (argSweep.length == 0) {
         return vscode.window.withProgress(
             {location: vscode.ProgressLocation.Notification, cancellable: false}, 
             (async (progress) => {
                 progress.report({message: "Submitting the job...", increment: 0});
-                let passed = await checkCondaEnv(true);
-                if (!passed) return 'failed';        
-    
-                let cfgPath = `./userdata/temp/submit_jobs_${new Date().getTime()}.json`;
-                saveWorkspaceFile(cfgPath, JSON.stringify(cfg, null, 4));
-
-                // First step: upload the config file
-                let destination = `"${cfg.storage.sas_token.split('?')[0]}/${cfg.experiment.workdir}/.msra_intern_s_toolkit/userdata/temp/?${cfg.storage.sas_token.split('?')[1]}"`;
-                let status1 = await uploadConfig(cfgPath, destination);
-                if (status1 != 'success') return status1;
-                progress.report({increment: 50});
-
-                // Second step: submit the job
-                let status2 = await submitToAML(cfgPath);
-                progress.report({increment: 50});
-                return status2;
+                try {await submitToAML(cfg, (increment) => progress.report({increment: increment}));}
+                catch (err) {return 'failed';}
             })
         );
     }
@@ -494,14 +660,9 @@ export async function submit() {
         return vscode.window.withProgress(
             {location: vscode.ProgressLocation.Notification, cancellable: false}, 
             (async (progress) => {
-                progress.report({message: "Submitting sweep jobs...", increment: 0});
                 let increment = 100 / (argSweepParsed.length + 1);
+                progress.report({message: `(0/${argSweepParsed.length}) Submitting sweep jobs...`, increment: increment});
 
-                let passed = await checkCondaEnv(true);
-                if (!passed) return 'failed';
-
-                let cfgFileBase = `submit_jobs_${new Date().getTime()}_sweep`;
-                let cfgPaths = [];
                 for (let i = 0; i < argSweepParsed.length; i++) {
                     let sweep_cfg: JobConfig = deepCopy(cfg);
                     sweep_cfg.experiment.arg_sweep = [];
@@ -511,23 +672,13 @@ export async function submit() {
                         }
                         sweep_cfg.experiment.job_name = sweep_cfg.experiment.job_name.replaceAll(`\${{${arg.name}}}`, arg.value);
                     }
-                    let cfgPath = `./userdata/temp/${cfgFileBase}_${i}.json`;
-                    saveWorkspaceFile(cfgPath, JSON.stringify(sweep_cfg, null, 4));
-                    cfgPaths.push(cfgPath);
+                 
+                    try {await submitToAML(sweep_cfg);}
+                    catch (err) {return 'failed';}
+
+                    progress.report({message: `(${i+1}/${argSweepParsed.length}) Submitting sweep jobs...`, increment: increment});
                 }
 
-                // First step: upload the config files
-                let destination = `"${cfg.storage.sas_token.split('?')[0]}/${cfg.experiment.workdir}/.msra_intern_s_toolkit/userdata/temp/?${cfg.storage.sas_token.split('?')[1]}"`;
-                let status1 = await uploadConfig(`./userdata/temp/${cfgFileBase}_*.json`, destination);
-                if (status1 != 'success') return status1;
-                progress.report({message: `(0/${cfgPaths.length}) Submitting sweep jobs...`, increment: increment});
-
-                // Second step: submit the jobs
-                for (let i = 0; i < cfgPaths.length; i++) {
-                    let status2 = await submitToAML(cfgPaths[i]);
-                    if (status2 != 'success') return status2;
-                    progress.report({message: `(${i+1}/${cfgPaths.length}) Submitting sweep jobs...`, increment: increment});
-                }
                 saveWorkspaceFile(`./userdata/jobs_history/${cfg.experiment.name}_${new Date().getTime()}_sweep.json`, JSON.stringify(cfg, null, 4));
             })
         );
@@ -535,22 +686,18 @@ export async function submit() {
 }
 
 export function updateConfig(group: string, label: string, value: any) {
-    (config as any)[group][label] = value;
-    if (group == 'cluster') {
-        if (label == 'workspace') {
-            let ws = resource.workspaces.find((v) => v.name == value);
-            if (ws) {
-                config.cluster.workspace_subscription_id = ws.subscriptionId;
-                config.cluster.workspace_resource_group = ws.resourceGroup;
-            }
-        }
-        else if (label == 'virtual_cluster') {
-            let vc = resource.virtualClusters.find((v) => v.name == value);
-            if (vc) {
-                config.cluster.virtual_cluster_subscription_id = vc.subscriptionId;
-                config.cluster.virtual_cluster_resource_group = vc.resourceGroup;
-            }
-        }
+    if (group == 'io') {
+        config.io = value.map((v: any) => {
+            let io = new IOConfig();
+            io.name = v.name;
+            io.datastore = v.datastore;
+            io.path = v.path;
+            io.mode = IOModeMap.get(v.mode)!;
+            return io;
+        });
+    }
+    else {
+        (config as any)[group][label] = value;
     }
     saveWorkspaceFile('./userdata/submit_jobs.json', JSON.stringify(config, null, 4));
 }
@@ -559,18 +706,17 @@ function loadConfig(path: string) {
     if (workspaceExists(path)) {
         config = new JobConfig(JSON.parse(getWorkspaceFile(path)));
     }
-    else {
-        config = new JobConfig();
-    }
+}
+
+function saveResourceCache() {
+    let cachePath = `./userdata/${account.alias}/resource_cache.json`;
+    saveFile(cachePath, JSON.stringify(resource, null, 4));
 }
 
 function loadResourceCache() {
-    let cachePath = './userdata/resource_cache.json';
-    if (workspaceExists(cachePath)) {
-        resource = new Resource(JSON.parse(getWorkspaceFile(cachePath)));
-    }
-    else {
-        resource = new Resource();
+    let cachePath = `./userdata/${account.alias}/resource_cache.json`;
+    if (exists(cachePath)) {
+        resource = new Resource(JSON.parse(getFile(cachePath)));
     }
 }
 
@@ -640,78 +786,15 @@ export async function save() {
     saveWorkspaceFile(`./userdata/saved_jobs/${res}.json`, JSON.stringify(config, null, 4));
 }
 
-function showSetupCondaEnvMessage() {
-    vscode.window.showInformationMessage('Conda environment not found. Setup now?', 'Yes', 'No').then((choice) => {
-        if (choice == 'Yes') {
-            setupCondaEnv();
-        }
-    });
-}
-
-function checkCondaEnv(showErrorMsg: boolean=false): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-        outputChannel.appendLine('[CMD] > conda env list');
-        cp.exec('conda env list', (error, stdout, stderr) => {
-            if (stdout) {
-                outputChannel.appendLine('[CMD OUT] ' + stdout);
-                let passed = stdout.includes('msra-intern-s-toolkit');
-                if (!passed) {
-                    if (showErrorMsg) showErrorMessageWithHelp(`Failed to submit the job. Conda environment not found.`);
-                    showSetupCondaEnvMessage();
-                }
-                resolve(passed);
-            }
-            else if (error) {
-                outputChannel.appendLine('[CMD ERR] ' + error.message);
-                if (showErrorMsg) showErrorMessageWithHelp(`Failed to submit the job. Conda spawning failed.`);
-                resolve(false);
-            }
-        });
-    });
-}
-
-async function setupCondaEnv() {
-    vscode.window.withProgress(
-        {location: vscode.ProgressLocation.Notification, cancellable: false}, 
-        async (progress) => {
-            progress.report({message: "Setting up the conda environment..."});
-            return new Promise<void> (resolve => {
-                outputChannel.appendLine('[CMD] > conda env create -f script/environment.yml');
-                let proc = cp.spawn('conda', ['env', 'create', '-f', `"${globalPath('script/environment.yml')}"`], {shell: true});
-                proc.stdout.on('data', (data) => {
-                    let sdata = String(data);
-                    outputChannel.appendLine('[CMD OUT] ' + sdata);
-                    if (sdata.includes('conda activate msra-intern-s-toolkit')) {
-                        vscode.window.showInformationMessage(`Conda environment setup done.`);
-                        resolve();
-                    }
-                });
-                proc.stderr.on('data', (data) => {
-                    let sdata = String(data);
-                    outputChannel.appendLine('[CMD ERR] ' + sdata);
-                });
-                proc.on('exit', (code) => {
-                    if (code != 0) vscode.window.showErrorMessage(`Failed to setup conda environment.`);
-                    resolve();
-                });
-            });
-        }
-    )
-}
-
-export async function getComputeResources() {
-    let res = await Promise.all([azureml.REST.getWorkspaces(), azureml.REST.getVirtualClusters(), azureml.REST.getImages()]);
-    resource.workspaces = res[0];
-    resource.virtualClusters = res[1];
-    resource.images = res[2];
-    azureml.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
-    saveWorkspaceFile('./userdata/resource_cache.json', JSON.stringify(resource, null, 4));
+export function refreshComputeResources() {
+    getComputeResources().then(() => refreshUI({resource: resource}));
 }
 
 export class uiParams {
     config?: JobConfig;
-    resource?: {workspaces: azureml.Workspace[], virtualClusters: azureml.VirtualCluster[]};
+    resource?: {workspaces: azure.ml.Workspace[], virtualClusters: azure.ml.VirtualCluster[]};
 }
+
 
 export function refreshUI(params?: uiParams) {
     console.log(params);
@@ -722,32 +805,27 @@ export function refreshUI(params?: uiParams) {
     }
 }
 
+export function loggedOut() {
+    ui.setContent({resource: undefined});
+}
+
+export async function loggedIn() {
+    loadResourceCache();
+    if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0) {
+        await getComputeResources();
+    }
+    refreshUI({resource: resource});
+}
+
 export function init() {
     outputChannel.appendLine('[INFO] Initializing job submission module...');
     if (vscode.workspace.workspaceFolders) {
         outputChannel.appendLine('[INFO] Workspace folder found.');
-        checkCondaEnv();
         loadConfig('./userdata/submit_jobs.json');
-        loadResourceCache();
-        if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0) {
-            vscode.commands.executeCommand('msra_intern_s_toolkit.refreshSubmitJobsView');
-        }
     }
     else {
         outputChannel.appendLine('[INFO] No workspace folder found.');
     };
-
-    vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.refreshSubmitJobsView', () => {
-        // show waiting info
-        vscode.window.withProgress(
-            {location: vscode.ProgressLocation.Notification, cancellable: false},
-            (() => (async (progress) => {
-                progress.report({message: "Fetching compute resources info..."});
-                await getComputeResources();
-                refreshUI({resource: resource});
-            }))()
-        );
-    }));
 
     ui = new SubmitJobsView();
     vscodeContext.subscriptions.push(vscode.window.registerWebviewViewProvider(

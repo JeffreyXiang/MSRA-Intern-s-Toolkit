@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process'
 import * as process from 'process'
 import {vscodeContext, outputChannel} from './extension'
-import * as az from './azure';
+import * as account from './account';
 import {showErrorMessageWithHelp} from './utils'
 import {globalPath, getFile, saveFile, exists} from './helper/file_utils'
 import {pidIsRunning, findNetProcessWin, findNetProcessMac, NetProtocol, NetState} from './helper/proc_utils'
@@ -159,14 +159,14 @@ function openBastionTunnel(i: number) {
     let proc : cp.ChildProcessWithoutNullStreams;
     switch (process.platform) {
         case 'win32':
-            console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`);
-            outputChannel.appendLine(`[CMD] > pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${az.domain}.${az.alias}`} -port ${tunnels[i].port}`);
-            proc = cp.spawn('pwsh.exe', [globalPath('script/gcr_tunnel/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', `${az.domain}.${az.alias}`, '-port', `${tunnels[i].port}`]);
+            console.log(`msra_intern_s_toolkit.openTunnel: Exec pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${account.domain}.${account.alias}`} -port ${tunnels[i].port}`);
+            outputChannel.appendLine(`[CMD] > pwsh.exe ${globalPath('script/gcr_tunnel/gdl.ps1')} -tunnel -num ${tunnels[i].sandboxID} -alias ${`${account.domain}.${account.alias}`} -port ${tunnels[i].port}`);
+            proc = cp.spawn('pwsh.exe', [globalPath('script/gcr_tunnel/gdl.ps1'), '-tunnel', '-num', `${tunnels[i].sandboxID}`, '-alias', `${account.domain}.${account.alias}`, '-port', `${tunnels[i].port}`]);
             break;
         case 'darwin':
-            console.log(`msra_intern_s_toolkit.openTunnel: Exec bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${az.domain}.${az.alias}`} -p ${tunnels[i].port}`);
-            outputChannel.appendLine(`[CMD] > bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${az.domain}.${az.alias}`} -p ${tunnels[i].port}`);
-            proc = cp.spawn('bash', [globalPath('script/gcr_tunnel/gdl.sh'), '-t', '-n', `${tunnels[i].sandboxID}`, '-a', `${az.domain}.${az.alias}`, '-p', `${tunnels[i].port}`]);
+            console.log(`msra_intern_s_toolkit.openTunnel: Exec bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${account.domain}.${account.alias}`} -p ${tunnels[i].port}`);
+            outputChannel.appendLine(`[CMD] > bash ${globalPath('script/gcr_tunnel/gdl.sh')} -t -n ${tunnels[i].sandboxID} -a ${`${account.domain}.${account.alias}`} -p ${tunnels[i].port}`);
+            proc = cp.spawn('bash', [globalPath('script/gcr_tunnel/gdl.sh'), '-t', '-n', `${tunnels[i].sandboxID}`, '-a', `${account.domain}.${account.alias}`, '-p', `${tunnels[i].port}`]);
             break;
         default:
             showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. Platform not supported.`);
@@ -233,9 +233,9 @@ function openSSHTunnel(i: number) {
     tunnels[i].state = 'ssh_opening';
     update(i);
     let ignoreHostFile = process.platform == 'win32' ? '\\\\.\\NUL' : '/dev/null';
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
-    outputChannel.appendLine(`[CMD] > ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${az.domain}.${az.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
-    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${az.domain}.${az.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', `UserKnownHostsFile=${ignoreHostFile}`], {detached: true, stdio: 'ignore'});
+    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${account.domain}.${account.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
+    outputChannel.appendLine(`[CMD] > ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${account.domain}.${account.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
+    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${account.domain}.${account.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', `UserKnownHostsFile=${ignoreHostFile}`], {detached: true, stdio: 'ignore'});
     proc.unref();
     proc.on('exit', (code) => {
         if (tunnels[i].state == 'ssh_opening') {
@@ -441,7 +441,7 @@ export function init() {
 
     if (isSupported) {
         setInterval(() => {
-            if (az.isLoggedIn) polling();
+            if (account.isLoggedIn) polling();
         }, 1000);
     }
 }

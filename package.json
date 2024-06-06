@@ -46,11 +46,6 @@
 			{
 				"command": "msra_intern_s_toolkit.openGCRTunnel",
 				"title": "MSRA Intern's Toolkit: Close GCR Tunnel"
-			},
-			{
-				"command": "msra_intern_s_toolkit.refreshSubmitJobsView",
-				"title": "Refresh Compute Resources",
-				"icon": "$(refresh)"
 			}
 		],
 		"configuration": {
@@ -100,21 +95,6 @@
 					"id": "msra_intern_s_toolkit_view_GCRTunnel",
 					"name": "GCR Tunnel",
 					"when": "msra_intern_s_toolkit.isStarted && msra_intern_s_toolkit.isLoggedIn"
-				}
-			]
-		},
-		"menus": {
-			"commandPalette": [
-				{
-					"command": "msra_intern_s_toolkit.refreshSubmitJobsView",
-					"when": "false"
-				}
-			],
-			"view/title": [
-				{
-					"command": "msra_intern_s_toolkit.refreshSubmitJobsView",
-					"when": "view == msra_intern_s_toolkit_view_submitJobs",
-					"group": "navigation"
 				}
 			]
 		},
@@ -168,6 +148,8 @@
 		"publisherDisplayName": "Jianfeng Xiang"
 	},
 	"dependencies": {
-		"typescript-parsec": "^0.3.4"
+		"@vscode/codicons": "0.0.36",
+		"typescript-parsec": "^0.3.4",
+		"yaml": "^2.4.3"
 	}
 }

@@ -3,6 +3,7 @@ import * as cp from 'child_process'
 import * as process from 'process'
 import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp} from './utils'
+import * as submitJobs from './submit_jobs'
 
 var azureStatusBar: vscode.StatusBarItem;
 export var domain: string;
@@ -11,7 +12,7 @@ export var isLoggedIn: boolean | undefined = undefined;
 var bearerToken: string | undefined = undefined;
 var tokenExpireTime: number | undefined = undefined;
 
-function checkAccount() {
+async function checkAccount() {
     outputChannel.appendLine('[CMD] > az account show');
     cp.exec('az account show', {env: process.env}, (error, stdout, stderr) => {
         if (stdout) {
@@ -21,6 +22,7 @@ function checkAccount() {
                     domain = selectedItem;
                     let username = JSON.parse(stdout).user.name;
                     alias = username.split('@')[0];
+                    submitJobs.loggedIn();
                     isLoggedIn = true;
                     vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
                     azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
@@ -75,6 +77,7 @@ function login() {
                             outputChannel.appendLine('[CMD OUT] ' + sdata);
                             let username = JSON.parse(sdata)[0].user.name;
                             alias = username.split('@')[0];
+                            submitJobs.loggedIn();
                             isLoggedIn = true;
                             vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
                             azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
@@ -121,6 +124,7 @@ function logout() {
             outputChannel.appendLine('[CMD] > az logout');
             cp.execSync('az logout');
             isLoggedIn = false;
+            submitJobs.loggedOut();
             vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', false);
             azureStatusBar.text = '$(msra-intern-s-toolkit) Click to login';
         }

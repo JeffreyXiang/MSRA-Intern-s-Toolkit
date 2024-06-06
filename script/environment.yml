@@ -1,6 +1,0 @@
-name: msra-intern-s-toolkit
-dependencies:
-  - python=3.10
-  - pip:
-    - azure-ai-ml
-    - azure-identity

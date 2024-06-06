@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Submit Jobs</title>
+    <link rel="stylesheet" href="${{codicon_css_uri}}">
     <style>
         body {
             user-select: none;
@@ -24,32 +25,17 @@
             outline: 1px var(--vscode-focusBorder) solid;
         }
 
-        .dropdown {
-            position: relative;
-            display: inline-flex;
-            flex: 1 0 50px;
-            min-width: 50px;
-        }
-
-        .dropdown-content {
+        #dropdown {
             display: none;
             position: absolute;
-            left: -80px;
-            top: 16px;
             white-space: nowrap;
             background-color: var(--vscode-editorWidget-background);
-            width: calc(100% + 80px);
-            max-height: calc(100vh - 125px);
             overflow-y: auto;
             box-shadow: 0px 0px 8px 0px rgba(0,0,0,0.5);
             z-index: 1;
         }
 
-        .dropdown:hover .dropdown-content {
-            display: block;
-        }
-
-        .dropdown-content .title {
+        #dropdown .title {
             margin: 5px;
             padding: 0px 5px;
             display: flex;
@@ -57,7 +43,7 @@
             align-items: center;
         }
 
-        .dropdown-content .title .info {
+        #dropdown .title .info {
             overflow: hidden;
             flex: auto;
             display: flex;
@@ -66,7 +52,7 @@
             align-items: flex-start;
         }
 
-        .dropdown-content .title .info .name {
+        #dropdown .title .info .name {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -75,7 +61,7 @@
             font-weight: 700;
         }
 
-        .dropdown-content .title .info .desc {
+        #dropdown .title .info .desc {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -83,7 +69,7 @@
             font-size: 10px;
         }
 
-        .dropdown-content .title .quota {
+        #dropdown .title .quota {
             height: 100%;
             width: 50px;
             margin-left: 5px;
@@ -95,22 +81,22 @@
             align-items: center;
         }
 
-        .dropdown-content .item {
+        #dropdown .item {
             display: block;
             background: rgb(128, 128, 128, 0.1);
             margin: 5px;
             padding: 2px 5px;
         }
 
-        .dropdown-content .item:hover {
+        #dropdown .item:hover {
             background: rgb(128, 128, 128, 0.2);
         }
 
-        .dropdown-content .item:active {
+        #dropdown .item:active {
             background: rgb(128, 128, 128, 0.3);
         }
 
-        .dropdown-content .item .name {
+        #dropdown .item .name {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -119,7 +105,7 @@
             font-weight: 700;
         }
 
-        .dropdown-content .item .desc {
+        #dropdown .item .desc {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -127,7 +113,7 @@
             font-size: 10px;
         }
 
-        .dropdown-content .subitem {
+        #dropdown .subitem {
             position: relative;
             margin: 3px 0px;
             padding: 0px 5px;
@@ -136,7 +122,7 @@
             align-items: center;
         }
 
-        .dropdown-content .subitem::before {
+        #dropdown .subitem::before {
             content: "";
             position: absolute;
             top: -1.5px;
@@ -146,7 +132,7 @@
             background: rgba(128,128,128,0.2);
         }
 
-        .dropdown-content .subitem .info {
+        #dropdown .subitem .info {
             overflow: hidden;
             flex: auto;
             display: flex;
@@ -155,7 +141,7 @@
             align-items: flex-start;
         }
 
-        .dropdown-content .subitem .info .name {
+        #dropdown .subitem .info .name {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -164,7 +150,7 @@
             font-weight: 500;
         }
 
-        .dropdown-content .subitem .info .desc {
+        #dropdown .subitem .info .desc {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -172,7 +158,7 @@
             font-size: 8px;
         }
 
-        .dropdown-content .subitem .quota {
+        #dropdown .subitem .quota {
             height: 100%;
             width: 50px;
             margin-left: 5px;
@@ -184,21 +170,21 @@
             align-items: center;
         }
 
-        .dropdown-content .basic {
+        .basic {
             color: rgb(173, 138, 86) !important;
         }
 
-        .dropdown-content .standard {
+        .standard {
             color: rgb(180, 180, 180) !important;
         }
 
-        .dropdown-content .premium {
+        .premium {
             color: rgb(255,215,0) !important;
         }
 
         div.groupbar {
-            width: calc(100% + 10px);
-            margin-left: -5px;
+            width: calc(100% + 20px);
+            margin-left: -15px;
             font-size: 12px;
             font-weight: 500;
             display: flex;
@@ -206,19 +192,77 @@
             align-items: center;
         }
 
-        div.groupbar::after {
-            content: "";
+        div.groupbar_separator {
             height: 1px;
             margin-left: 5px;
             background: rgb(128, 128, 128, 0.5);
             flex: 1 0 0px;
         }
 
+        div.groupbar_button {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        div.groupbar_button i {
+            font-size: 14px !important;
+        }
+
+        div.groupbar_button:hover {
+            background: rgb(128, 128, 128, 0.2);
+        }
+
+        div.groupbar_button:active {
+            background: rgb(128, 128, 128, 0.3);
+        }
+
+        div.card {
+            position: relative;
+            margin: 5px 0px;
+            padding: 1px 5px;
+            box-shadow: 0px 0px 8px 0px rgba(0,0,0,0.5);
+        }
+
+        div.card .close {
+            width: 13px;
+            height: 13px;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        div.card .close i {
+            font-size: 14px !important;
+        }
+
+        div.card .close:hover {
+            background: rgb(222, 6, 26);
+        }
+        
         div.item {
+            position: relative;
             margin: 5px 0px;
             display: flex;
             justify-content: left;
             align-items: center;
+        }
+
+        div.item i {
+            position: absolute;
+            right: 2px;
+            font-size: 12px !important;
+            pointer-events: none;
         }
 
         div.item .label {
@@ -258,13 +302,85 @@
     <script>
         const vscode = acquireVsCodeApi();
         var resource = null;
+        var io_idx = 0;
 
-        function update_checkbox_hiddens() {
-            let copy_data = document.getElementById('copy_data').checked;
-            let sync_code = document.getElementById('sync_code').checked;
-            document.getElementsByClassName('data_dir_')[0].style.display = copy_data ? null : 'none';
-            document.getElementsByClassName('data_subdir_')[0].style.display = copy_data ? null : 'none';
-            document.getElementsByClassName('ignore_dir_')[0].style.display = sync_code ? null : 'none';
+        function getAbsolutePosition(element) {
+            let x = 0;
+            let y = 0;
+            while (element) {
+                x += element.offsetLeft;
+                y += element.offsetTop;
+                element = element.offsetParent;
+            }
+            return {left: x, top: y};
+        }
+
+        function toggle_display(button, group) {
+            let groupbar = button.parentElement;
+            let group_content = groupbar.nextElementSibling;
+            if (group_content.style.display == 'none') {
+                group_content.style.display = 'block';
+                button.innerHTML = '<i class="codicon codicon-chevron-down"></i>';
+            }
+            else {
+                group_content.style.display = 'none';
+                button.innerHTML = '<i class="codicon codicon-chevron-right"></i>';
+            }
+        }
+
+        function add_io(io=null) {
+            document.getElementById('no_io_prompt').style.display = 'none';
+            let io_list = document.getElementById('io_list');
+            let new_io = document.createElement('div');
+            new_io.className = 'card';
+            new_io.innerHTML = `
+                <div class="item"><div class="label">Name:</div><input type="text" onchange="config_changed('io', '', get_ios())"></div>
+                <div class="item"><div class="label">Datastore:</div><input type="text" class="with_dropdown"><i class="codicon codicon-chevron-down"></i></div>
+                <div class="item"><div class="label">Path:</div><input type="text" onchange="config_changed('io', '', get_ios())"></div>
+                <div class="item"><div class="label">Mode:</div><input type="text" class="with_dropdown" value="Read Only Mount"><i class="codicon codicon-chevron-down"></i></div>
+                <div class="close" onclick="delete_io(this)"><i class="codicon codicon-close"></i></div>
+            `;
+            let name_input = new_io.children[0].children[1];
+            let datastore_input = new_io.children[1].children[1];
+            let path_input = new_io.children[2].children[1];
+            let mode_input = new_io.children[3].children[1];
+            datastore_input.onclick = () => {
+                update_dropdown_datastore(datastore_input);
+                show_dropdown(datastore_input);
+            }
+            mode_input.onclick = () => {
+                update_dropdown_io_mode(mode_input);
+                show_dropdown(mode_input);
+            }
+            if (io) {
+                name_input.value = io.name;
+                datastore_input.value = io.datastore;
+                path_input.value = io.path;
+                mode_input.value = io.mode;
+            }
+            io_list.appendChild(new_io);
+        }
+
+        function delete_io(button) {
+            let io_list = document.getElementById('io_list');
+            io_list.removeChild(button.parentElement);
+            if (io_list.children.length == 0) {
+                document.getElementById('no_io_prompt').style.display = 'block';
+            }
+        }
+
+        function get_ios() {
+            let io_list = document.getElementById('io_list');
+            let ios = [];
+            for (let i = 0; i < io_list.children.length; i++) {
+                let io = io_list.children[i];
+                let name = io.children[0].children[1].value;
+                let datastore = io.children[1].children[1].value;
+                let path = io.children[2].children[1].value;
+                let mode = io.children[3].children[1].value;
+                ios.push({name: name, datastore: datastore, path: path, mode: mode});
+            }
+            return ios;
         }
 
         function update_config(config) {
@@ -273,67 +389,81 @@
             document.getElementById('instance_type').value   = config.cluster.instance_type;
             document.getElementById('node_count').value      = config.cluster.node_count.toString();
             document.getElementById('sla_tier').value        = config.cluster.sla_tier;
-            document.getElementById('datastore_name').value  = config.storage.datastore_name;
-            document.getElementById('account_name').value    = config.storage.account_name;
-            document.getElementById('account_key').value     = config.storage.account_key;
-            document.getElementById('container_name').value  = config.storage.container_name;
-            document.getElementById('sas_token').value       = config.storage.sas_token;
-            document.getElementById('docker_image').value    = config.environment.docker_image;
-            document.getElementById('setup_script').value    = config.environment.setup_script;
+            document.getElementById('image').value           = config.environment.image;
+            document.getElementById('sync_target').value     = config.synchronization.target;
+            document.getElementById('ignore_dir').value      = config.synchronization.ignore_dir;
             document.getElementById('name').value            = config.experiment.name;
             document.getElementById('job_name').value        = config.experiment.job_name;
-            document.getElementById('workdir').value         = config.experiment.workdir;
-            document.getElementById('copy_data').checked     = config.experiment.copy_data;
-            document.getElementById('sync_code').checked     = config.experiment.sync_code;
-            document.getElementById('data_dir').value        = config.experiment.data_dir;
-            document.getElementById('data_subdir').value     = config.experiment.data_subdir;
-            document.getElementById('ignore_dir').value      = config.experiment.ignore_dir;
             document.getElementById('script').value          = config.experiment.script;
             document.getElementById('arg_sweep').value       = config.experiment.arg_sweep;
-            update_checkbox_hiddens();
+            for (let io of config.io) {
+                add_io(io);
+            }
         }
 
-        function update_virtual_clusters(virtual_clusters) {
-            let dropdown = document.getElementById('virtual_cluster_dropdown_items');
-            let input = document.getElementById('virtual_cluster');
+        function show_dropdown(input) {
+            let dropdown = document.getElementById('dropdown');
+            let input_pos = getAbsolutePosition(input);
+            dropdown.style.left = input_pos.left - 80 + 'px';
+            dropdown.style.top = input_pos.top + input.offsetHeight + 'px';
+            dropdown.style.width = input.offsetWidth + 80 + 'px';
+            dropdown.style.maxHeight = window.innerHeight - input.getBoundingClientRect().bottom - 20 + 'px';
+            dropdown.style.display = 'block';
+        }
+
+        function hide_dropdown() {
+            document.getElementById('dropdown').style.display = 'none';
+        }
+
+        function update_dropdown_virtual_cluster(input) {
+            let dropdown = document.getElementById('dropdown');
             dropdown.innerHTML = '';
-            for (let i = 0; i < virtual_clusters.length; i++) {
+            let virtualClusters = resource.virtualClusters;
+            for (let i = 0; i < virtualClusters.length; i++) {
                 let item = document.createElement('div');
                 item.className = 'item';
                 let desc = '';
-                for (let j = 0; j < virtual_clusters[i].instanceSeries.length; j++) {
+                for (let j = 0; j < virtualClusters[i].instanceSeries.length; j++) {
                     desc += `
-                        <div title="${virtual_clusters[i].instanceSeries[j].name}" class="subitem">
+                        <div title="${virtualClusters[i].instanceSeries[j].name}" class="subitem">
                             <div class="info">
-                            	<div class="name">${virtual_clusters[i].instanceSeries[j].id}</div>
-                            	<div class="desc">${virtual_clusters[i].instanceSeries[j].name}</div>
+                            	<div class="name">${virtualClusters[i].instanceSeries[j].id}</div>
+                            	<div class="desc">${virtualClusters[i].instanceSeries[j].name}</div>
                             </div>
                             <div class="quota">
-                                <div class="premium">${virtual_clusters[i].instanceSeries[j].quota.Premium.used} / ${virtual_clusters[i].instanceSeries[j].quota.Premium.limit}</div>
-                                <div class="standard">${virtual_clusters[i].instanceSeries[j].quota.Standard.used} / ${virtual_clusters[i].instanceSeries[j].quota.Standard.limit}</div>
-                                <div class="basic">${virtual_clusters[i].instanceSeries[j].quota.Basic.used} / ${virtual_clusters[i].instanceSeries[j].quota.Basic.limit}</div>
+                                <div class="premium">${virtualClusters[i].instanceSeries[j].quota.Premium.used} / ${virtualClusters[i].instanceSeries[j].quota.Premium.limit}</div>
+                                <div class="standard">${virtualClusters[i].instanceSeries[j].quota.Standard.used} / ${virtualClusters[i].instanceSeries[j].quota.Standard.limit}</div>
+                                <div class="basic">${virtualClusters[i].instanceSeries[j].quota.Basic.used} / ${virtualClusters[i].instanceSeries[j].quota.Basic.limit}</div>
                             </div>
                         </div>
                     `;
                 }
-                item.innerHTML = '<div class="name">' + virtual_clusters[i].name.toUpperCase() + '</div><div class="desc">' + desc + '</div>';
+                item.innerHTML = '<div class="name">' + virtualClusters[i].name.toUpperCase() + '</div><div class="desc">' + desc + '</div>';
                 item.onclick = () => {
-                    input.value = virtual_clusters[i].name;
+                    input.value = virtualClusters[i].name;
                     config_changed('cluster', 'virtual_cluster');
-                    update_instance_types(virtual_clusters[i].instanceSeries);
-                    if (virtual_clusters[i].defaultWorkspace) {
-                        document.getElementById('workspace').value = virtual_clusters[i].defaultWorkspace.name;
+                    if (virtualClusters[i].defaultWorkspace) {
+                        document.getElementById('workspace').value = virtualClusters[i].defaultWorkspace.name;
                         config_changed('cluster', 'workspace');
                     }
+                    let current_instance_type = document.getElementById('instance_type').value;
+                    let is_instance_type_available = virtualClusters[i].instanceSeries.some(
+                        (item) => item.instanceTypes.some((item) => item.name == current_instance_type)
+                    );
+                    if (!is_instance_type_available) {
+                        document.getElementById('instance_type').value = virtualClusters[i].instanceSeries[0].instanceTypes[0].name;
+                        config_changed('cluster', 'instance_type');
+                    }
+                    hide_dropdown();
                 }
                 dropdown.appendChild(item);
             }
         }
 
-        function update_workspaces(workspaces) {
-            let dropdown = document.getElementById('workspace_dropdown_items');
-            let input = document.getElementById('workspace');
+        function update_dropdown_workspace(input) {
+            let dropdown = document.getElementById('dropdown');
             dropdown.innerHTML = '';
+            let workspaces = resource.workspaces;
             for (let i = 0; i < workspaces.length; i++) {
                 let item = document.createElement('div');
                 item.className = 'item';
@@ -341,70 +471,215 @@
                 item.onclick = () => {
                     input.value = workspaces[i].name;
                     config_changed('cluster', 'workspace');
+                    hide_dropdown();
                 }
                 dropdown.appendChild(item);
             }
         }
 
-        function update_docker_images(images) {
-            let dropdown = document.getElementById('docker_image_dropdown_items');
-            let input = document.getElementById('docker_image');
-            let instance_type = document.getElementById('instance_type').value;
+        function update_dropdown_instance_type(input) {
+            let dropdown = document.getElementById('dropdown');
             dropdown.innerHTML = '';
+            let selected = document.getElementById('virtual_cluster').value;
+            let virtualCluster = resource.virtualClusters.find((item) => item.name == selected);
+            if (virtualCluster) {
+                let instanceSeries = virtualCluster.instanceSeries;
+                for (let i = 0; i < instanceSeries.length; i++) {
+                    let item = document.createElement('div');
+                    item.className = 'title';
+                    item.innerHTML = `
+                        <div title="${instanceSeries[i].name}" class="info">
+                        	<div class="name">${instanceSeries[i].id}</div>
+                        	<div class="desc">${instanceSeries[i].name}</div>
+                        </div>
+                        <div class="quota">
+                            <div class="premium">${instanceSeries[i].quota.Premium.used} / ${instanceSeries[i].quota.Premium.limit}</div>
+                            <div class="standard">${instanceSeries[i].quota.Standard.used} / ${instanceSeries[i].quota.Standard.limit}</div>
+                            <div class="basic">${instanceSeries[i].quota.Basic.used} / ${instanceSeries[i].quota.Basic.limit}</div>
+                        </div>
+                    `;
+                    dropdown.appendChild(item);
+                    for (let j = 0; j < instanceSeries[i].instanceTypes.length; j++) {
+                        let item = document.createElement('div');
+                        item.className = 'item';
+                        item.title = instanceSeries[i].instanceTypes[j].description;
+                        item.innerHTML = `
+                            <div class="name">${instanceSeries[i].instanceTypes[j].name}</div>
+                            <div class="desc">${instanceSeries[i].instanceTypes[j].description}</div>
+                        `;
+                        item.onclick = () => {
+                            input.value = instanceSeries[i].instanceTypes[j].name;
+                            config_changed('cluster', 'instance_type');
+                            hide_dropdown();
+                        }
+                        dropdown.appendChild(item);
+                    }
+                }
+            }
+        }
+        
+        function update_dropdown_sla_tier(input) {
+            let dropdown = document.getElementById('dropdown');
+            dropdown.innerHTML = '';
+            let item = document.createElement('div');
+            item.className = 'item';
+            item.innerHTML = `
+                <div class="name premium">Premium</div>
+                <div class="desc">GPU time fraction guarantee: 90%</div>
+                <div class="desc">Preemption: Almost never</div>
+                <div class="desc">Topology: Always respects locality</div>
+            `;
+            item.onclick = () => {
+                input.value = 'Premium';
+                config_changed('cluster', 'sla_tier');
+                hide_dropdown();
+            }
+            dropdown.appendChild(item);
+            item = document.createElement('div');
+            item.className = 'item';
+            item.innerHTML = `
+                <div class="name standard">Standard</div>
+                <div class="desc">GPU time fraction guarantee: 70%</div>
+                <div class="desc">Preemption: Infrequent</div>
+                <div class="desc">Topology: Mostly respects locality</div>
+            `;
+            item.onclick = () => {
+                input.value = 'Standard';
+                config_changed('cluster', 'sla_tier');
+                hide_dropdown();
+            }
+            dropdown.appendChild(item);
+            item = document.createElement('div');
+            item.className = 'item';
+            item.innerHTML = `
+                <div class="name basic">Basic</div>
+                <div class="desc">GPU time fraction guarantee: Best effort</div>
+                <div class="desc">Preemption: Frequent</div>
+                <div class="desc">Topology: Best effort</div>
+            `;
+            item.onclick = () => {
+                input.value = 'Basic';
+                config_changed('cluster', 'sla_tier');
+                hide_dropdown();
+            }
+            dropdown.appendChild(item);
+        }
+
+        function update_dropdown_image(input) {
+            let dropdown = document.getElementById('dropdown');
+            dropdown.innerHTML = '';
+            let images = resource.images;
             for (let i = 0; i < images.length; i++) {
-                if (images[i].name == input.value) current_image_available = true;
                 let item = document.createElement('div');
                 item.className = 'item';
                 item.title = images[i].description;
                 item.innerHTML = '<div class="name">' + images[i].name + '</div><div class="desc">' + images[i].description + '</div>';
                 item.onclick = () => {
                     input.value = images[i].name;
-                    config_changed('environment', 'docker_image');
+                    config_changed('environment', 'image');
+                    hide_dropdown();
                 }
                 dropdown.appendChild(item);
             }
         }
 
-        function update_instance_types(instance_series) {
-            let dropdown = document.getElementById('instance_type_dropdown_items');
-            let input = document.getElementById('instance_type');
-            let is_current_instance_type_available = false;
+        function update_dropdown_sync_target(input) {
+            let dropdown = document.getElementById('dropdown');
             dropdown.innerHTML = '';
-            for (let i = 0; i < instance_series.length; i++) {
+            let ios = get_ios();
+            for (let i = 0; i < ios.length; i++) {
+                if (ios[i].name.trim() == '') {continue;}
+                let datastore = resource.datastores.find((item) => item.name == ios[i].datastore);
+                if (!datastore) {continue;}
                 let item = document.createElement('div');
-                item.className = 'title';
+                item.className = 'item';
+                let desc = `${datastore.blobContainer.account.name}/${datastore.blobContainer.name}/${ios[i].path}`;
+                item.title = desc;
                 item.innerHTML = `
-                    <div title="${instance_series[i].name}" class="info">
-                    	<div class="name">${instance_series[i].id}</div>
-                    	<div class="desc">${instance_series[i].name}</div>
-                    </div>
-                    <div class="quota">
-                        <div class="premium">${instance_series[i].quota.Premium.used} / ${instance_series[i].quota.Premium.limit}</div>
-                        <div class="standard">${instance_series[i].quota.Standard.used} / ${instance_series[i].quota.Standard.limit}</div>
-                        <div class="basic">${instance_series[i].quota.Basic.used} / ${instance_series[i].quota.Basic.limit}</div>
-                    </div>
+                    <div class="name">${ios[i].name}</div>
+                    <div class="desc">${desc}</div>
                 `;
-                dropdown.appendChild(item);
-                for (let j = 0; j < instance_series[i].instanceTypes.length; j++) {
-                    if (instance_series[i].instanceTypes[j].name == input.value) is_current_instance_type_available = true;
-                    let item = document.createElement('div');
-                    item.className = 'item';
-                    item.title = instance_series[i].instanceTypes[j].description;
-                    item.innerHTML = `
-                        <div class="name">${instance_series[i].instanceTypes[j].name}</div>
-                        <div class="desc">${instance_series[i].instanceTypes[j].description}</div>
-                    `;
-                    item.onclick = () => {
-                        input.value = instance_series[i].instanceTypes[j].name;
-                        config_changed('cluster', 'instance_type');
-                    }
-                    dropdown.appendChild(item);
+                item.onclick = () => {
+                    input.value = ios[i].name;
+                    config_changed('synchronization', 'target', input.value);
+                    hide_dropdown();
                 }
+                dropdown.appendChild(item);
             }
-            if (!is_current_instance_type_available) {
-                input.value = instance_series[0].instanceTypes[0].name; // default to the first instance type
-                config_changed('cluster', 'instance_type');
+            if (dropdown.children.length == 0) {
+                let prompt = document.createElement('div');
+                prompt.style.color = 'gray';
+                prompt.style.textAlign = 'center';
+                prompt.style.margin = '5px';
+                prompt.innerHTML = 'No IO configured. To use synchronization, please add IO first.';
+                dropdown.appendChild(prompt);
             }
+        }
+
+        function update_dropdown_datastore(input) {
+            let dropdown = document.getElementById('dropdown');
+            dropdown.innerHTML = '';
+            let manageButton = document.createElement('div');
+            manageButton.className = 'button';
+            manageButton.innerHTML = 'Manage Datastores';
+            manageButton.onclick = () => {
+                send_message({command: 'manageDatastores'});
+            }
+            dropdown.appendChild(manageButton);
+            let datastores = resource.datastores;
+            for (let i = 0; i < datastores.length; i++) {
+                let item = document.createElement('div');
+                let desc = `${datastores[i].blobContainer.account.name}/${datastores[i].blobContainer.name}`;
+                item.className = 'item';
+                item.title = desc;
+                item.innerHTML = `
+                    <div class="name">${datastores[i].name}</div>
+                    <div class="desc">${desc}</div>
+                `;
+                item.onclick = () => {
+                    input.value = datastores[i].name;
+                    config_changed('io', '', get_ios());
+                    hide_dropdown();
+                }
+                dropdown.appendChild(item);
+            }
+            if (dropdown.children.length == 1) {
+                let prompt = document.createElement('div');
+                prompt.style.color = 'gray';
+                prompt.style.textAlign = 'center';
+                prompt.style.margin = '5px';
+                prompt.innerHTML = 'No datastores available.';
+                dropdown.appendChild(prompt);
+            } 
+        }
+
+        function update_dropdown_io_mode(input) {
+            let dropdown = document.getElementById('dropdown');
+            dropdown.innerHTML = '';
+            const io_modes = ['Read Only Mount', 'Read Write Mount', 'Download', 'Upload'];
+            for (let mode of io_modes) {
+                let item = document.createElement('div');
+                item.className = 'item';
+                item.innerHTML = '<div class="name">' + mode + '</div>';
+                item.onclick = () => {
+                    input.value = mode;
+                    config_changed('io', '', get_ios());
+                    hide_dropdown();
+                }
+                dropdown.appendChild(item);
+            }
+        }
+
+        function send_message(data) {
+            vscode.postMessage(data);
+        }
+
+        function config_changed(group, label, value=null) {
+            value = (value == null) ? document.getElementById(label).value : value;
+            if (label == 'node_count') {
+                value = parseInt(value);
+            }
+            send_message({command: 'update', params: {group: group, label: label, value: value}});
         }
 
         window.addEventListener('message', event => {
@@ -413,135 +688,154 @@
             const state = ['closed', 'preopen_check', 'bastion_opening', 'ssh_opening', 'opened'];
             switch (command) {
                 case 'setContent':
-                    if (params.config) {
+                    document.getElementById('error').style.display = 'none';
+                    document.getElementById('normal').style.display = 'block';
+                    if (params.hasOwnProperty('config')) {
                         update_config(params.config);
                     }
-                    if (params.resource) {
+                    if (params.hasOwnProperty('resource')) {
                         resource = params.resource;
-                        update_virtual_clusters(resource.virtualClusters);
-                        update_workspaces(resource.workspaces);
-                        update_docker_images(resource.images);
+                        if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0)  {
+                            document.getElementById('normal').style.display = 'none';
+                            document.getElementById('error').style.display = 'block';
+                            document.getElementById('error').innerHTML = 'No available resource.';
+                        }
                     }
-                    let selected_virtual_cluster = document.getElementById('virtual_cluster').value;
-                    let selected_virtual_cluster_index = resource.virtualClusters.findIndex((item) => item.name == selected_virtual_cluster);
-                    if (selected_virtual_cluster_index != -1)
-                        update_instance_types(resource.virtualClusters[selected_virtual_cluster_index].instanceSeries);
-                    else
-                        update_instance_types([]);
                     break;
                 case 'noWorkspace':
-                    document.body.innerHTML = '<div style="margin: 10px;">Please open a workspace first.</div>';
+                    document.getElementById('normal').style.display = 'none';
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').innerHTML = 'Please open a workspace first.';
                     break;
             }
-        })
-
-        function send_message(data) {
-            vscode.postMessage(data);
-        }
+        });
 
         window.onload = () => {
             send_message({command: 'getContent'});
-        }
 
-        function config_changed(group, label) {
-            let value;
-            if (label == 'copy_data' || label == 'sync_code') {
-                value = document.getElementById(label).checked;
-                update_checkbox_hiddens();
-            }
-            else if (label == 'node_count') {
-                value = parseInt(document.getElementById(label).value);
-            }
-            else {
-                value = document.getElementById(label).value;
-            }
-            send_message({command: 'update', params: {group: group, label: label, value: value}});
+            // Register events for the dropdown
+            let virtual_cluster_input = document.getElementById('virtual_cluster');
+            virtual_cluster_input.onclick = () => {
+                update_dropdown_virtual_cluster(virtual_cluster_input);
+                show_dropdown(virtual_cluster_input);
+            };
+
+            let workspace_input = document.getElementById('workspace');
+            workspace_input.onclick = () => {
+                update_dropdown_workspace(workspace_input);
+                show_dropdown(workspace_input);
+            };
+
+            let instance_type_input = document.getElementById('instance_type');
+            instance_type_input.onclick = () => {
+                update_dropdown_instance_type(instance_type_input);
+                show_dropdown(instance_type_input);
+            };
+
+            let sla_tier_input = document.getElementById('sla_tier');
+            sla_tier_input.onclick = () => {
+                update_dropdown_sla_tier(sla_tier_input);
+                show_dropdown(sla_tier_input);
+            };
+
+            let image_input = document.getElementById('image');
+            image_input.onclick = () => {
+                update_dropdown_image(image_input);
+                show_dropdown(image_input);
+            };
+
+            let sync_target_input = document.getElementById('sync_target');
+            sync_target_input.onclick = () => {
+                update_dropdown_sync_target(sync_target_input);
+                show_dropdown(sync_target_input);
+            };
+            
+            // Hide the dropdown when clicking outside of it
+            window.onclick = (event) => {
+                if (!event.target.matches('#dropdown') && !event.target.matches('.with_dropdown')) {
+                    hide_dropdown();
+                }
+            };
         }
     </script>
 </head>
 <body>
-    <div class="groupbar">Cluster</div>
-    <div class="item">
-        <div class="label">Virtual Cluster:</div>
-        <div class="dropdown">
-            <input id="virtual_cluster" type="text" disabled>
-            <div class="dropdown-content" id="virtual_cluster_dropdown_items"></div>
-        </div>
-    </div>
-    <div class="item">
-        <div class="label">Workspace:</div>
-        <div class="dropdown">
-            <input id="workspace" type="text" disabled>
-            <div class="dropdown-content" id="workspace_dropdown_items"></div>
-        </div>
-    </div>
-    <div class="item">
-        <div class="label">Instance Type:</div>
-        <div class="dropdown">
-            <input id="instance_type" type="text" disabled>
-            <div class="dropdown-content" id="instance_type_dropdown_items"></div>
-        </div>
-    </div>
-    <div class="item"><div class="label">Node Count:</div><input id="node_count" type="number" min="1" max="4" step="1" onchange="config_changed('cluster', 'node_count')"></div>
-    <div class="item">
-        <div class="label">SLA Tier:</div>
-        <div class="dropdown">
-            <input id="sla_tier" type="text" disabled>
-            <div class="dropdown-content">
-                <div class="item" onclick="document.getElementById('sla_tier').value = 'Premium'; config_changed('cluster', 'sla_tier')">
-                    <div class="name premium">Premium</div>
-                    <div class="desc">GPU time fraction guarantee: 90%</div>
-                    <div class="desc">Preemption: Almost never</div>
-                    <div class="desc">Topology: Always respects locality</div>
-                </div>
-                <div class="item" onclick="document.getElementById('sla_tier').value = 'Standard'; config_changed('cluster', 'sla_tier')">
-                    <div class="name standard">Standard</div>
-                    <div class="desc">GPU time fraction guarantee: 70%</div>
-                    <div class="desc">Preemption: Infrequent</div>
-                    <div class="desc">Topology: Mostly respects locality</div>
-                </div>
-                <div class="item" onclick="document.getElementById('sla_tier').value = 'Basic'; config_changed('cluster', 'sla_tier')">
-                    <div class="name basic">Basic</div>
-                    <div class="desc">GPU time fraction guarantee: Best effort</div>
-                    <div class="desc">Preemption: Frequent</div>
-                    <div class="desc">Topology: Best effort</div>
-                </div>
+    <div id="error" style="display: none; margin: 10px;"></div>
+    <div id="dropdown"></div>
+    <div id="normal">
+        <div class="groupbar">
+            <div class="groupbar_button" onclick="toggle_display(this, 'cluster_group')">
+                <i class="codicon codicon-chevron-down"></i>
+            </div>
+            Cluster
+            <div class="groupbar_separator"></div>
+            <div class="groupbar_button" onclick="send_message({command: 'refreshComputeResources'})" title="Refresh Compute Resources">
+                <i class="codicon codicon-refresh"></i>
             </div>
         </div>
-    </div>
-    <div class="groupbar">Storage</div>
-    <div class="item"><div class="label">Datastore:</div><input id="datastore_name" type="text" onchange="config_changed('storage', 'datastore_name')"></div>
-    <div class="item"><div class="label">Account:</div><input id="account_name" type="text" onchange="config_changed('storage', 'account_name')"></div>
-    <div class="item"><div class="label">Account Key:</div><input id="account_key" type="text" onchange="config_changed('storage', 'account_key')"></div>
-    <div class="item"><div class="label">Container:</div><input id="container_name" type="text" onchange="config_changed('storage', 'container_name')"></div>
-    <div class="item"><div class="label">SAS Token:</div><input id="sas_token" type="text" onchange="config_changed('storage', 'sas_token')"></div>
-    <div class="groupbar">Environment</div>
-    <div class="item">
-        <div class="label">Docker Image:</div>
-        <div class="dropdown">
-            <input id="docker_image" type="text" disabled>
-            <div class="dropdown-content" id="docker_image_dropdown_items"></div>
+        <div id="cluster_group">
+            <div class="item"><div class="label">Virtual Cluster:</div><input id="virtual_cluster" class="with_dropdown"  type="text"><i class="codicon codicon-chevron-down"></i></div>
+            <div class="item"><div class="label">Workspace:</div><input id="workspace" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
+            <div class="item"><div class="label">Instance Type:</div><input id="instance_type" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
+            <div class="item"><div class="label">Node Count:</div><input id="node_count" type="number" min="1" max="4" step="1" onchange="config_changed('cluster', 'node_count')"></div>
+            <div class="item"><div class="label">SLA Tier:</div><input id="sla_tier" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
         </div>
-    </div>
-    <div class="item"><div class="label">Setup Script:</div><textarea id="setup_script" type="text" onchange="config_changed('environment', 'setup_script')"></textarea></div>
-    <div class="groupbar">Experiment</div>
-    <div class="item"><div class="label">Name:</div><input id="name" type="text" onchange="config_changed('experiment', 'name')"></div>
-    <div class="item"><div class="label">Job Name:</div><input id="job_name" type="text" placeholder="Auto generated" onchange="config_changed('experiment', 'job_name')"></div>
-    <div class="item"><div class="label">Work Dir:</div><input id="workdir" type="text" onchange="config_changed('experiment', 'workdir')"></div>
-    <div class="item" style="display: inline-flex;"><div class="label">Copy Data:</div><input id="copy_data" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'copy_data')"></div>
-    <div class="item" style="display: inline-flex;"><div class="label">Sync Code:</div><input id="sync_code" type="checkbox" checked="true" style="min-width: 0px;flex:0 0 auto" onchange="config_changed('experiment', 'sync_code')"></div>
-    <div class="item data_dir_"><div class="label">Data Dir:</div><input id="data_dir" type="text" onchange="config_changed('experiment', 'data_dir')"></div>
-    <div class="item data_subdir_"><div class="label">Data Subdir:</div><input id="data_subdir" type="text" onchange="config_changed('experiment', 'data_subdir')"></div>
-    <div class="item ignore_dir_"><div class="label">Ignore Dir:</div><input id="ignore_dir" type="text" onchange="config_changed('experiment', 'ignore_dir')"></div>
-    <div class="item"><div class="label">Script:</div><textarea id="script" type="text" rows="3" onchange="config_changed('experiment', 'script')"></textarea></div>
-    <div class="item"><div class="label">Arg Sweep:</div><textarea id="arg_sweep" type="text" rows="1" onchange="config_changed('experiment', 'arg_sweep')"></textarea></div>
-    <div id="buttons">
-        <div class="button" onclick="send_message({command: 'load'})">Load</div>
-        <div class="button" onclick="send_message({command: 'save'})">Save</div>
-    </div>
-    <div id="buttons">
-        <div class="button" onclick="send_message({command: 'synchronize'})">Synchronize</div>
-        <div class="button" onclick="send_message({command: 'submit'})">Submit</div>
+        <div class="groupbar">
+            <div class="groupbar_button" onclick="toggle_display(this, 'io_group')">
+                <i class="codicon codicon-chevron-down"></i>
+            </div>
+            IO
+            <div class="groupbar_separator"></div>
+            <div class="groupbar_button" onclick="add_io()" title="Add IO">
+                <i class="codicon codicon-add"></i>
+            </div>
+        </div>
+        <div class="io_group">
+            <div id="io_list"></div>
+            <div id="no_io_prompt" style="color: gray; text-align: center;">No IO configured.</div>
+        </div>    
+        <div class="groupbar">
+            <div class="groupbar_button" onclick="toggle_display(this, 'environment_group')">
+                <i class="codicon codicon-chevron-down"></i>
+            </div>
+            Environment
+            <div class="groupbar_separator"></div>
+        </div>
+        <div id="environment_group">
+            <div class="item"><div class="label">Image:</div><input id="image" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
+        </div>
+        <div class="groupbar">
+            <div class="groupbar_button" onclick="toggle_display(this, 'synchronization_group')">
+                <i class="codicon codicon-chevron-down"></i>
+            </div>
+            Synchronization
+            <div class="groupbar_separator"></div>
+        </div>
+        <div id="synchronization_group">
+            <div class="item"><div class="label">Target:</div><input id="sync_target" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
+            <div class="item"><div class="label">Ignore Dir:</div><input id="ignore_dir" type="text" onchange="config_changed('synchronization', 'ignore_dir')"></div>
+        </div>
+        <div class="groupbar">
+            <div class="groupbar_button" onclick="toggle_display(this, 'experiment_group')">
+                <i class="codicon codicon-chevron-down"></i>
+            </div>
+            Experiment
+            <div class="groupbar_separator"></div>
+        </div>
+        <div id="experiment_group">
+            <div class="item"><div class="label">Name:</div><input id="name" type="text" onchange="config_changed('experiment', 'name')"></div>
+            <div class="item"><div class="label">Job Name:</div><input id="job_name" type="text" onchange="config_changed('experiment', 'job_name')"></div>
+            <div class="item"><div class="label">Script:</div><textarea id="script" type="text" rows="3" onchange="config_changed('experiment', 'script')"></textarea></div>
+            <div class="item"><div class="label">Arg Sweep:</div><textarea id="arg_sweep" type="text" rows="1" onchange="config_changed('experiment', 'arg_sweep')"></textarea></div>
+            <div id="buttons">
+                <div class="button" onclick="send_message({command: 'load'})">Load</div>
+                <div class="button" onclick="send_message({command: 'save'})">Save</div>
+            </div>
+            <div id="buttons">
+                <div class="button" onclick="send_message({command: 'synchronize'})">Synchronize</div>
+                <div class="button" onclick="send_message({command: 'submit'})">Submit</div>
+            </div>
+        </div>
     </div>
 </body>
 </html>

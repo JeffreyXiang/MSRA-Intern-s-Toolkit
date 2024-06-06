@@ -1,6 +1,6 @@
 import * as cp from 'child_process'
-import {outputChannel} from '../extension'
-import { RelativePattern } from 'vscode';
+import {outputChannel} from '../../../extension'
+import { BlobContainer } from '../storage';
 
 export class InstanceType {
     name: string;
@@ -77,6 +77,22 @@ export class Image {
     }
 }
 
+export class Datastore {
+    name: string;
+    blobContainer: BlobContainer;
+    authType: string;
+
+    constructor(name: string, blobContainer: BlobContainer, authType: string) {
+        this.name = name;
+        this.blobContainer = blobContainer;
+        this.authType = authType;
+    }
+
+    public getUri(directory: string) {
+        return `azureml://datastores/${this.name}/paths/${directory}`;
+    }
+}
+
 export namespace  REST {
 
     export enum RESTMethod {
@@ -86,11 +102,11 @@ export namespace  REST {
         DELETE = 'DELETE'
     }
 
-    export async function request(method: RESTMethod, url: string, body: any | undefined = undefined) {
+    export async function request(method: RESTMethod, uri: string, body: any | undefined = undefined) {
         let bodyStr = body ? JSON.stringify(body) : undefined;
         let args = ['rest',
             '--method', method,
-            '--uri', url,
+            '--uri', uri,
         ];
         if (bodyStr) args.push('--body', `"${bodyStr.replaceAll(`'`, `\\'`).replaceAll(`"`, `'`)}"`);
         outputChannel.appendLine('[CMD] > az ' + args.join(' '));
@@ -103,11 +119,11 @@ export namespace  REST {
         }
         if (stderr) {
             outputChannel.appendLine('[CMD ERR] ' + stderr);
-            throw new Error(stderr);
+            throw stderr;
         }
         if (proc.error) {
             outputChannel.appendLine('[CMD ERR] ' + proc.error.message);
-            throw new Error(proc.error.message);
+            throw proc.error.message;
         }
     }
 

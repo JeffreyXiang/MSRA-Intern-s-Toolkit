@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getFile } from '../helper/file_utils';
 import * as job from '../submit_jobs';
+import { vscodeContext } from '../extension';
 
 export class SubmitJobsView implements vscode.WebviewViewProvider {
     private view?: vscode.WebviewView;
@@ -12,8 +13,10 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken) {
         this.view = webviewView;
+        let codiconsUri = webviewView.webview.asWebviewUri(vscode.Uri.joinPath(vscodeContext.extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
         webviewView.webview.options = { enableScripts: true };
-        webviewView.webview.html = this.html;
+        webviewView.webview.html = this.html
+            .replace('${{codicon_css_uri}}', codiconsUri.toString());
         webviewView.webview.onDidReceiveMessage((message: any) => {
             // console.log('msra_intern_s_toolkit.ui.SubmitJobsView: Receive ' + JSON.stringify(message));
             switch (message.command) {
@@ -21,12 +24,17 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
                     job.refreshUI();
                     break;
                 case 'update':
-                    if (message.params.group == 'environment' && message.params.label == 'setup_script' ||
-                        message.params.group == 'experiment' && message.params.label == 'script' ||
+                    if (message.params.group == 'experiment' && message.params.label == 'script' ||
                         message.params.group == 'experiment' && message.params.label == 'arg_sweep') {
                         message.params.value = message.params.value.split('\n');
                     }
                     job.updateConfig(message.params.group, message.params.label, message.params.value);
+                    break;
+                case 'refreshComputeResources':
+                    job.refreshComputeResources();
+                    break;
+                case 'manageDatastores':
+                    job.manageDatastores();
                     break;
                 case 'load':
                     job.load();
@@ -49,9 +57,6 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
         let msg_params = JSON.parse(JSON.stringify(params));
         if (this.view) {
             if (msg_params.hasOwnProperty('config')) {
-                if (typeof msg_params.config.environment.setup_script !== 'string') {
-                    msg_params.config.environment.setup_script = msg_params.config.environment.setup_script.join('\n');
-                }
                 if (typeof msg_params.config.experiment.script !== 'string') {
                     msg_params.config.experiment.script = msg_params.config.experiment.script.join('\n');
                 }

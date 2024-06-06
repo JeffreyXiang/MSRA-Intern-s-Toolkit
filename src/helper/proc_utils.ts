@@ -17,14 +17,14 @@ export enum NetProtocol {
     UDPv6
 }
 
-var winNetProtocolMap = new Map<NetProtocol, string>([
+const winNetProtocolMap = new Map<NetProtocol, string>([
     [NetProtocol.TCP, 'TCP'],
     [NetProtocol.UDP, 'UDP'],
     [NetProtocol.TCPv6, 'TCPv6'],
     [NetProtocol.UDPv6, 'UDPv6']
 ]);
 
-var macNetProtocolMap = new Map<NetProtocol, string>([
+const macNetProtocolMap = new Map<NetProtocol, string>([
     [NetProtocol.TCP, '4TCP'],
     [NetProtocol.UDP, '4UDP'],
     [NetProtocol.TCPv6, '6TCP'],
@@ -45,7 +45,7 @@ export enum NetState {
     LAST_ACK
 }
 
-var winNetStateMap = new Map<NetState, string>([
+const winNetStateMap = new Map<NetState, string>([
     [NetState.CLOSED, 'CLOSED'],
     [NetState.LISTEN, 'LISTENING'],
     [NetState.SYN_SENT, 'SYN_SEND'],
@@ -59,7 +59,7 @@ var winNetStateMap = new Map<NetState, string>([
     [NetState.LAST_ACK, 'LAST_ACK'],
 ]);
 
-var macNetStateMap = new Map<NetState, string>([
+const macNetStateMap = new Map<NetState, string>([
     [NetState.CLOSED, 'CLOSED'],
     [NetState.LISTEN, 'LISTEN'],
     [NetState.SYN_SENT, 'SYN_SENT'],
