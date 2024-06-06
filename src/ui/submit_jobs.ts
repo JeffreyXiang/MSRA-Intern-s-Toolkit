@@ -2,6 +2,21 @@ import * as vscode from 'vscode';
 import { getFile } from '../helper/file_utils';
 import * as job from '../submit_jobs';
 import { vscodeContext } from '../extension';
+import { deepCopy } from '../utils';
+
+const Display2IOMode = new Map<string, job.IOMode>([
+    ['Read Only Mount', job.IOMode.RO_MOUNT],
+    ['Read Write Mount', job.IOMode.RW_MOUNT],
+    ['Download', job.IOMode.DOWNLOAD],
+    ['Upload', job.IOMode.UPLOAD],
+]);
+
+const IOMode2Display = new Map<job.IOMode, string>([
+    [job.IOMode.RO_MOUNT, 'Read Only Mount'],
+    [job.IOMode.RW_MOUNT, 'Read Write Mount'],
+    [job.IOMode.DOWNLOAD, 'Download'],
+    [job.IOMode.UPLOAD, 'Upload'],
+]);
 
 export class SubmitJobsView implements vscode.WebviewViewProvider {
     private view?: vscode.WebviewView;
@@ -18,7 +33,6 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
         webviewView.webview.html = this.html
             .replace('${{codicon_css_uri}}', codiconsUri.toString());
         webviewView.webview.onDidReceiveMessage((message: any) => {
-            // console.log('msra_intern_s_toolkit.ui.SubmitJobsView: Receive ' + JSON.stringify(message));
             switch (message.command) {
                 case 'getContent':
                     job.refreshUI();
@@ -27,6 +41,16 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
                     if (message.params.group == 'experiment' && message.params.label == 'script' ||
                         message.params.group == 'experiment' && message.params.label == 'arg_sweep') {
                         message.params.value = message.params.value.split('\n');
+                    }
+                    if (message.params.group == 'io') {
+                        message.params.value = message.params.value.map((v: any) => {
+                            let io = new job.IOConfig();
+                            io.name = v.name;
+                            io.datastore = v.datastore;
+                            io.path = v.path;
+                            io.mode = Display2IOMode.get(v.mode)!;
+                            return io;
+                        });
                     }
                     job.updateConfig(message.params.group, message.params.label, message.params.value);
                     break;
@@ -50,23 +74,20 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
                     break;
             }
         });
-        // console.log('msra_intern_s_toolkit.ui.SubmitJobsView: Webview resolved');
     }
 
     public setContent(params: job.uiParams) {
-        let msg_params = JSON.parse(JSON.stringify(params));
         if (this.view) {
-            if (msg_params.hasOwnProperty('config')) {
-                if (typeof msg_params.config.experiment.script !== 'string') {
-                    msg_params.config.experiment.script = msg_params.config.experiment.script.join('\n');
-                }
-                if (typeof msg_params.config.experiment.arg_sweep !== 'string') {
-                    msg_params.config.experiment.arg_sweep = msg_params.config.experiment.arg_sweep.join('\n');
+            let msg_params = deepCopy(params);
+            if (params.config) {
+                msg_params.config.experiment.script = params.config.experiment.script.join('\n');
+                msg_params.config.experiment.arg_sweep = msg_params.config.experiment.arg_sweep.join('\n');
+                for (let i = 0; i < msg_params.config.io.length; i++) {
+                    msg_params.config.io[i].mode = IOMode2Display.get(msg_params.config.io[i].mode)!;
                 }
             }
             let message = {command: 'setContent', params: msg_params};
             this.view.webview.postMessage(message);
-            // console.log('msra_intern_s_toolkit.ui.SubmitJobsView: Send ' + JSON.stringify(message));
         }
     }
 

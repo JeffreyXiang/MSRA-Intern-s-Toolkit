@@ -14,6 +14,10 @@ export class InstanceType {
         this.cpus = cpus;
         this.gpus = gpus;
     }
+
+    static fromJSON(obj: any) {
+        return new InstanceType(obj.name, obj.description, obj.cpus, obj.gpus);
+    }
 }
 
 export class Quota {
@@ -33,6 +37,16 @@ export class InstanceSeries {
         this.id = id;
         this.name = name;
     }
+
+    static fromJSON(obj: any) {
+        let series = new InstanceSeries(obj.id, obj.name);
+        series.quota.Basic = {limit: obj.quota.Basic.limit, used: obj.quota.Basic.used};
+        series.quota.Standard = {limit: obj.quota.Standard.limit, used: obj.quota.Standard.used};
+        series.quota.Premium = {limit: obj.quota.Premium.limit, used: obj.quota.Premium.used};
+        if (obj.limit) series.limit = {limit: obj.limit.limit, used: obj.limit.used};
+        series.instanceTypes = obj.instanceTypes.map((instanceType: any) => InstanceType.fromJSON(instanceType));
+        return series;
+    }
 }
 
 export class VirtualCluster {
@@ -51,6 +65,14 @@ export class VirtualCluster {
         this.name = name;
         this.location = location;
     }
+
+    static fromJSON(obj: any) {
+        let vc = new VirtualCluster(obj.id, obj.subscriptionId, obj.resourceGroup, obj.name, obj.location);
+        vc.instanceSeries = obj.instanceSeries.map((instanceSeries: any) => InstanceSeries.fromJSON(instanceSeries));
+        if (obj.defaultWorkspace) vc.defaultWorkspace = Workspace.fromJSON(obj.defaultWorkspace);
+        return vc;
+    }
+
 }
 
 export class Workspace {
@@ -65,6 +87,10 @@ export class Workspace {
         this.subscriptionId = subscriptionId;
         this.resourceGroup = resourceGroup;
     }
+
+    static fromJSON(obj: any) {
+        return new Workspace(obj.id, obj.name, obj.subscriptionId, obj.resourceGroup);
+    }
 }
 
 export class Image {
@@ -74,6 +100,10 @@ export class Image {
     constructor(name: string, description: string) {
         this.name = name;
         this.description = description;
+    }
+
+    static fromJSON(obj: any) {
+        return new Image(obj.name, obj.description);
     }
 }
 
@@ -86,6 +116,10 @@ export class Datastore {
         this.name = name;
         this.blobContainer = blobContainer;
         this.authType = authType;
+    }
+
+    static fromJSON(obj: any) {
+        return new Datastore(obj.name, BlobContainer.fromJSON(obj.blobContainer), obj.authType);
     }
 
     public getUri(directory: string) {
@@ -197,7 +231,7 @@ export namespace  REST {
                 let series = vc.instanceSeries.find((series) => series.id == instanceType.instanceTypeSeriesId);
                 if (series) {
                     series.instanceTypes.push(
-                        new InstanceType(instanceType.name.replace('Singularity.', ''), instanceType.description, instanceType.numberOfCores, instanceType.numberOfGPpus)
+                        new InstanceType(instanceType.name.replace('Singularity.', ''), instanceType.description, instanceType.numberOfCores, instanceType.numberOfGPUs)
                     );
                 }
             }

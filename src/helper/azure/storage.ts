@@ -15,6 +15,15 @@ export class StorageAccount {
         this.uri = uri;
     }
 
+    static fromJSON(obj: any): StorageAccount {
+        let newAccount = new StorageAccount(obj.name, obj.uri);
+        if (obj.id) newAccount.id = obj.id;
+        if (obj.subscription) newAccount.subscription = obj.subscription;
+        if (obj.resourceGroup) newAccount.resourceGroup = obj.resourceGroup;
+        if (obj.key) newAccount.key = obj.key;
+        return newAccount;
+    }
+
     static fromSubscription(id: string, name: string, subscription: string, resourceGroup: string, uri: string): StorageAccount {
         let newAccount = new StorageAccount(name, uri);
         newAccount.id = id;
@@ -46,6 +55,16 @@ export class BlobContainer {
         this.uri = `${storageAccount.uri}/${name}`;
     }
 
+    static fromJSON(obj: any): BlobContainer {
+        let newContainer = new BlobContainer(
+            StorageAccount.fromJSON(obj.storageAccount),
+            obj.name
+        );
+        if (obj.sas) newContainer.sas = SharedAccessSignature.fromJSON(obj.sas);
+        newContainer.uri = obj.uri;
+        return newContainer;
+    }
+
     async generateSAS(durationDays: number = 7, permissions: string = 'acdlrw'): Promise<SharedAccessSignature> {
         return await generateSAS(this, durationDays, permissions);
     }
@@ -68,6 +87,10 @@ export class SharedAccessSignature {
     constructor(token: string, expiry: Date) {
         this.token = token;
         this.expiry = expiry;
+    }
+
+    static fromJSON(obj: any): SharedAccessSignature {
+        return new SharedAccessSignature(obj.token, new Date(obj.expiry));
     }
 }
 

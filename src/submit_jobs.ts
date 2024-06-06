@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
-import * as cp from 'child_process'
 import * as parsec from 'typescript-parsec'
 import {vscodeContext, outputChannel} from './extension'
-import {SubmitJobsView} from './ui/submit_jobs'
 import {showErrorMessageWithHelp, deepCopy} from './utils'
-import {globalPath, workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles, exists, saveFile, getFile} from './helper/file_utils'
+import {workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles, exists, saveFile, getFile} from './helper/file_utils'
 import * as account from './account'
 import * as azure from './helper/azure'
 
@@ -16,37 +14,30 @@ class ClusterConfig {
     sla_tier: string = 'Basic';
 }
 
-enum IOMode {
+export enum IOMode {
     RO_MOUNT = 'ro_mount',
     RW_MOUNT = 'rw_mount',
     DOWNLOAD = 'download',
     UPLOAD = 'upload',
 }
 
-const IOModeMap = new Map<string, IOMode>([
-    ['Read Only Mount', IOMode.RO_MOUNT],
-    ['Read Write Mount', IOMode.RW_MOUNT],
-    ['Download', IOMode.DOWNLOAD],
-    ['Upload', IOMode.UPLOAD],
-]);
-
-class IOConfig {
+export class IOConfig {
     name: string = '';
     datastore: string = '';
     path: string = '';
     mode: IOMode = IOMode.RW_MOUNT;
 }
 
-class SynchronizationConfig {
+export class SynchronizationConfig {
     target: string = '';
     ignore_dir: string = '';
 }
 
-class EnvironmentConfig {
+export class EnvironmentConfig {
     image: string = '';
 }
 
-class ExperimentConfig {
+export class ExperimentConfig {
     name: string = '';
     job_name: string = '';
     script: string[] = [];
@@ -118,28 +109,16 @@ export class Resource {
         if (init === undefined) return;
 
         if (init.workspaces !== undefined) this.workspaces = init.workspaces.map(
-            (v: any) => new azure.ml.Workspace(v.id, v.name, v.subscriptionId, v.resourceGroup)
+            (v: any) => azure.ml.Workspace.fromJSON(v)
         );
         if (init.virtualClusters !== undefined) this.virtualClusters = init.virtualClusters.map(
-            (v: any) => new azure.ml.VirtualCluster(v.id, v.subscriptionId, v.resourceGroup, v.name, v.location)
+            (v: any) => azure.ml.VirtualCluster.fromJSON(v)
         );
         if (init.images !== undefined) this.images = init.images.map(
-            (v: any) => new azure.ml.Image(v.name, v.description)
+            (v: any) => azure.ml.Image.fromJSON(v)
         );
         if (init.datastores !== undefined) this.datastores = init.datastores.map(
-            (v: any) => new azure.ml.Datastore(
-                v.name, 
-                new azure.storage.BlobContainer(
-                    (v.blobContainer.storageAcount.hasOwnProperty('key')) ?
-                        azure.storage.StorageAccount.fromKey(v.blobContainer.storageAcount.name, v.blobContainer.storageAcount.key) :
-                        azure.storage.StorageAccount.fromSubscription(
-                            v.blobContainer.storageAcount.id, v.blobContainer.storageAcount.name,
-                            v.blobContainer.storageAcount.subscriptionId, v.blobContainer.storageAcount.resourceGroup,
-                            v.blobContainer.storageAcount.uri),
-                    v.blobContainer.name
-                ),
-                v.authType
-            )
+            (v: any) => azure.ml.Datastore.fromJSON(v)
         );
     }
 }
@@ -147,6 +126,7 @@ export class Resource {
 var config: JobConfig = new JobConfig();
 var resource: Resource = new Resource();
 
+import {SubmitJobsView} from './ui/submit_jobs'
 export var ui: SubmitJobsView;
 
 
@@ -347,13 +327,13 @@ async function getComputeResources() {
 
 async function selectDatastore(prompt?: string) {
     let datastores = resource.datastores.map((v) => v.name);
-    let selected = await vscode.window.showQuickPick(datastores, {title: prompt ? prompt : 'Select datastore'});
+    let selected = await vscode.window.showQuickPick(datastores, {title: prompt ? prompt : 'Select datastore', ignoreFocusOut: true});
     if (selected === undefined) return;
     return resource.datastores.find((v) => v.name == selected);
 }
 
 async function setDatastoreAuth(datastore: azure.ml.Datastore, overwrite: boolean = true) {
-    let selected = await vscode.window.showQuickPick(['Account Key', 'Shared Access Signature', 'Identity'], {title: 'Select authentication method'});
+    let selected = await vscode.window.showQuickPick(['Account Key', 'Shared Access Signature', 'Identity'], {title: 'Select authentication method', ignoreFocusOut: true});
     if (selected === undefined) return;
     switch (selected) {
         case 'Account Key':
@@ -361,7 +341,7 @@ async function setDatastoreAuth(datastore: azure.ml.Datastore, overwrite: boolea
                 datastore.authType = 'key';
             }
             else {
-                let key = await vscode.window.showInputBox({prompt: 'Enter the account key'});
+                let key = await vscode.window.showInputBox({prompt: 'Enter the account key', ignoreFocusOut: true});
                 if (key === undefined) return;
                 datastore.authType = 'key';
                 datastore.blobContainer.storageAccount.key = key;
@@ -379,13 +359,13 @@ async function setDatastoreAuth(datastore: azure.ml.Datastore, overwrite: boolea
 
 async function newDatastore() {
     // Get the way to connect to the storage account
-    let selected = await vscode.window.showQuickPick(['Account Key', 'User Identity'], {title: 'Select connection method to Azure Storage Account'});
+    let selected = await vscode.window.showQuickPick(['Account Key', 'User Identity'], {title: 'Select connection method to Azure Storage Account', ignoreFocusOut: true});
     if (selected === undefined) return;
     let storageAcount: azure.storage.StorageAccount;
     if (selected == 'Account Key') {
-        let name = await vscode.window.showInputBox({prompt: 'Enter the name of the storage account'});
+        let name = await vscode.window.showInputBox({prompt: 'Enter the name of the storage account', ignoreFocusOut: true});
         if (name === undefined) return;
-        let key = await vscode.window.showInputBox({prompt: 'Enter the key of the storage account'});
+        let key = await vscode.window.showInputBox({prompt: 'Enter the key of the storage account', ignoreFocusOut: true});
         if (key === undefined) return;
         storageAcount = azure.storage.StorageAccount.fromKey(name, key);
     }
@@ -403,7 +383,7 @@ async function newDatastore() {
             })
         );
         if (subscriptions === undefined) return;
-        selected = await vscode.window.showQuickPick(subscriptions.map((v) => v.name), {title: 'Select subscription to get workspaces'});
+        selected = await vscode.window.showQuickPick(subscriptions.map((v) => v.name), {title: 'Select subscription to get workspaces', ignoreFocusOut: true});
         if (selected === undefined) return;
         let subscription = subscriptions.find((v) => v.name == selected)!;
         // Get Storage Accounts
@@ -419,7 +399,7 @@ async function newDatastore() {
             })
         );
         if (storageAcounts === undefined) return;
-        selected = await vscode.window.showQuickPick(storageAcounts.map((v) => v.name), {title: 'Select storage account'});
+        selected = await vscode.window.showQuickPick(storageAcounts.map((v) => v.name), {title: 'Select storage account', ignoreFocusOut: true});
         if (selected === undefined) return;
         storageAcount = storageAcounts.find((v) => v.name == selected)!;
     }
@@ -436,11 +416,11 @@ async function newDatastore() {
         })
     );
     if (containers === undefined) return;
-    selected = await vscode.window.showQuickPick(containers.map((v) => v.name), {title: 'Select container'});
+    selected = await vscode.window.showQuickPick(containers.map((v) => v.name), {title: 'Select container', ignoreFocusOut: true});
     if (selected === undefined) return;
     let container = containers.find((v) => v.name == selected)!;
     // Get the name of the new datastore
-    let name = await vscode.window.showInputBox({prompt: 'Enter the name of the new datastore'});
+    let name = await vscode.window.showInputBox({prompt: 'Enter the name of the new datastore', ignoreFocusOut: true});
     if (name === undefined) return;
     // Set the auth type
     let newDatastore = await setDatastoreAuth(new azure.ml.Datastore(name, container, 'identity'), false);
@@ -467,7 +447,7 @@ async function deleteDatastore() {
 }
 
 export async function manageDatastores() {
-    let selected = await vscode.window.showQuickPick(['New', 'Update', 'Delete'], {title: 'Select action'});
+    let selected = await vscode.window.showQuickPick(['New', 'Update', 'Delete'], {title: 'Select action', ignoreFocusOut: true});
     if (selected === undefined) return;
     let status;
     switch (selected) {
@@ -687,14 +667,7 @@ export async function submit() {
 
 export function updateConfig(group: string, label: string, value: any) {
     if (group == 'io') {
-        config.io = value.map((v: any) => {
-            let io = new IOConfig();
-            io.name = v.name;
-            io.datastore = v.datastore;
-            io.path = v.path;
-            io.mode = IOModeMap.get(v.mode)!;
-            return io;
-        });
+        config.io = value;
     }
     else {
         (config as any)[group][label] = value;

@@ -593,7 +593,7 @@
                 if (!datastore) {continue;}
                 let item = document.createElement('div');
                 item.className = 'item';
-                let desc = `${datastore.blobContainer.account.name}/${datastore.blobContainer.name}/${ios[i].path}`;
+                let desc = `${datastore.blobContainer.storageAccount.name}/${datastore.blobContainer.name}/${ios[i].path}`;
                 item.title = desc;
                 item.innerHTML = `
                     <div class="name">${ios[i].name}</div>
@@ -629,7 +629,7 @@
             let datastores = resource.datastores;
             for (let i = 0; i < datastores.length; i++) {
                 let item = document.createElement('div');
-                let desc = `${datastores[i].blobContainer.account.name}/${datastores[i].blobContainer.name}`;
+                let desc = `${datastores[i].blobContainer.storageAccount.name}/${datastores[i].blobContainer.name}`;
                 item.className = 'item';
                 item.title = desc;
                 item.innerHTML = `
@@ -696,9 +696,12 @@
                     if (params.hasOwnProperty('resource')) {
                         resource = params.resource;
                         if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0)  {
-                            document.getElementById('normal').style.display = 'none';
-                            document.getElementById('error').style.display = 'block';
-                            document.getElementById('error').innerHTML = 'No available resource.';
+                            document.getElementById('no_resource_prompt').style.display = 'block';
+                            document.getElementById('cluster_group').style.display = 'none';
+                        }
+                        else {
+                            document.getElementById('no_resource_prompt').style.display = 'none';
+                            document.getElementById('cluster_group').style.display = 'block';
                         }
                     }
                     break;
@@ -780,6 +783,7 @@
             <div class="item"><div class="label">Node Count:</div><input id="node_count" type="number" min="1" max="4" step="1" onchange="config_changed('cluster', 'node_count')"></div>
             <div class="item"><div class="label">SLA Tier:</div><input id="sla_tier" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
         </div>
+        <div id="no_resource_prompt" style="color: gray; text-align: center;">No available resource.</div>
         <div class="groupbar">
             <div class="groupbar_button" onclick="toggle_display(this, 'io_group')">
                 <i class="codicon codicon-chevron-down"></i>

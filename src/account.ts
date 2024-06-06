@@ -17,7 +17,7 @@ async function checkAccount() {
     cp.exec('az account show', {env: process.env}, (error, stdout, stderr) => {
         if (stdout) {
             outputChannel.appendLine('[CMD OUT] ' + stdout);
-            vscode.window.showQuickPick(['REDMOND', 'FAREAST'], { title: 'Select your domain' }).then((selectedItem) => {
+            vscode.window.showQuickPick(['REDMOND', 'FAREAST'], { title: 'Select your domain', ignoreFocusOut: true }).then((selectedItem) => {
                 if (selectedItem) {
                     domain = selectedItem;
                     let username = JSON.parse(stdout).user.name;
@@ -60,7 +60,7 @@ async function checkAccount() {
 }
 
 function login() {
-    vscode.window.showQuickPick(['REDMOND', 'FAREAST'], { title: 'Select your domain' }).then((selectedItem) => {
+    vscode.window.showQuickPick(['REDMOND', 'FAREAST'], { title: 'Select your domain', ignoreFocusOut: true }).then((selectedItem) => {
         if (selectedItem) {
             domain = selectedItem;
             vscode.window.withProgress(
@@ -119,7 +119,7 @@ function login() {
 }
 
 function logout() {
-	vscode.window.showQuickPick(['Yes', 'No'], { title: 'Are you sure you want to logout?' }).then((selectedItem) => {
+	vscode.window.showQuickPick(['Yes', 'No'], { title: 'Are you sure you want to logout?', ignoreFocusOut: true }).then((selectedItem) => {
         if (selectedItem == 'Yes') {
             outputChannel.appendLine('[CMD] > az logout');
             cp.execSync('az logout');

@@ -50,7 +50,8 @@ export async function addTunnel() {
     // input sandbox ID
     let res = await vscode.window.showInputBox({
         title: 'Input sandbox ID',
-        prompt: 'Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.'
+        prompt: 'Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.',
+        ignoreFocusOut: true,
     });
     if (res != undefined) {
         // sandbox ID check
@@ -73,7 +74,8 @@ export async function addTunnel() {
         res = await vscode.window.showInputBox({
             title: 'Input port',
             value: `${defaultPort}`,
-            prompt: 'Local port of the tunnel, should be 5 digits start with 2.'
+            prompt: 'Local port of the tunnel, should be 5 digits start with 2.',
+            ignoreFocusOut: true,
         });
         if (res != undefined) {
             // port check
