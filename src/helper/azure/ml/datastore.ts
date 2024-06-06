@@ -50,7 +50,7 @@ export async function buildBlobContainerSpec(datastore: Datastore) {
     );
 }
 
-export function create(Workspace: Workspace, specFile: string): Promise<any> {
+export async function create(Workspace: Workspace, specFile: string): Promise<any> {
     outputChannel.appendLine(`[CMD] > az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`);
     let proc = cp.spawnSync('az', ['ml', 'datastore', 'create', '-f', specFile, '-w', Workspace.name, '-g', Workspace.resourceGroup, '--subscription', Workspace.subscriptionId], {shell: true});
     let stdout = proc.stdout.toString();
@@ -62,6 +62,9 @@ export function create(Workspace: Workspace, specFile: string): Promise<any> {
     if (stderr) {
         outputChannel.appendLine(`[CMD ERR] ${stderr}`);
         console.error(`msra_intern_s_toolkit.createDatastore: stderr - ${stderr}`);
+        if (stderr.includes(`'ml' is misspelled or not recognized by the system.`)) {
+            throw 'azure_ml_ext_not_installed';
+        }
     }
     if (proc.error) {
         outputChannel.appendLine(`[CMD ERR] ${proc.error.message}`);

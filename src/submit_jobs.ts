@@ -472,17 +472,17 @@ export async function synchronize(jobcfg?: JobConfig) {
     let cfg: JobConfig = jobcfg ? jobcfg : deepCopy(config);
     if (cfg.synchronization.target == '') {
         vscode.window.showInformationMessage('Please select a target io.');
-        return 'failed';
+        throw 'no_target_io';
     }
     let targetIO = cfg.io.find((v) => v.name == cfg.synchronization.target);
     if (!targetIO) {
         showErrorMessageWithHelp('Failed to synchronize code. Target io not found.');
-        return 'failed';
+        throw 'target_io_not_found';
     }
     let targetDatastore = resource.datastores.find((v) => v.name == targetIO!.datastore);
     if (!targetDatastore) {
         showErrorMessageWithHelp('Failed to synchronize code. Datastore of the target io not found.');
-        return 'failed';
+        throw 'target_datastore_not_found';
     }
     return vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false},
@@ -502,7 +502,7 @@ export async function synchronize(jobcfg?: JobConfig) {
             } catch (err) {
                 if (err == 'permission_denied') showErrorMessageWithHelp('Failed to synchronize code. Permission denied.');
                 else showErrorMessageWithHelp(`Failed to synchronize code. Code: ${err}`);
-                return 'failed';
+                throw 'failed_to_synchronize';
             }
             vscode.window.showInformationMessage('Code synchronized.');
             return 'success';
@@ -520,7 +520,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         let datastore = resource.datastores.find((v) => v.name == io.datastore);
         if (!datastore) {
             showErrorMessageWithHelp(`Failed to submit the job. Datastore ${io.datastore} not found.`);
-            return 'failed';
+            throw 'datastore_not_found';
         }
         if (!datastores.includes(datastore)) datastores.push(datastore);
         if ([IOMode.RO_MOUNT, IOMode.DOWNLOAD].includes(io.mode)) {
@@ -556,7 +556,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     }
     if (errorMsgs.length > 0) {
         showErrorMessageWithHelp(`Failed to submit the job. Failed to build datastore specs for:\n${errorMsgs.join('\n')}`);
-        throw 'failed_to_build_datastore_specs';
+        return 'failed_to_build_datastore_specs';
     }
     let datastoreSpecs = datastoreSpecPromises.map((v) => (v as PromiseFulfilledResult<azure.ml.datastore.Spec>).value);
 
@@ -594,6 +594,10 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     errorMsgs = [];
     for (let i = 0; i < datastoreCreatePromises.length; i++) {
         if (datastoreCreatePromises[i].status == 'rejected') {
+            if ((datastoreCreatePromises[i] as PromiseRejectedResult).reason == 'azure_ml_ext_not_installed') {
+                showErrorMessageWithHelp(`Failed to submit the job. Azure ML extension not installed.`);
+                throw 'azure_ml_ext_not_installed';
+            }
             errorMsgs.push(`  ${datastores[i].name}`);
         }
     }
@@ -608,6 +612,10 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     try {
         jobInfo = await azure.ml.job.create(workspace, workspacePath(jobPath));
     } catch (err) {
+        if (err == 'azure_ml_ext_not_installed') {
+            showErrorMessageWithHelp(`Failed to submit the job. Azure ML extension not installed.`);
+            throw 'azure_ml_ext_not_installed';
+        }
         showErrorMessageWithHelp('Failed to submit the job. Failed to create the job.');
         throw 'failed_to_create_job';
     }
