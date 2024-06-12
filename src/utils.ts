@@ -34,3 +34,15 @@ export function showErrorMessageWithHelp(text: string){
         }
     })
 }
+
+export function randomString(length: number, withUpperCase: boolean = false): string {
+    let chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+    if (withUpperCase) {
+        chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    }
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as parsec from 'typescript-parsec'
 import {vscodeContext, outputChannel} from './extension'
-import {showErrorMessageWithHelp, deepCopy} from './utils'
+import {showErrorMessageWithHelp, deepCopy, randomString} from './utils'
 import {workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles, exists, saveFile, getFile} from './helper/file_utils'
 import * as account from './account'
 import * as azure from './helper/azure'
@@ -305,7 +305,7 @@ namespace ArgSweepParser {
 }
 
 async function getComputeResources() {
-    return vscode.window.withProgress(
+    return await vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false},
         (() => (async (progress) => {
             progress.report({message: "Fetching compute resources info..."});
@@ -314,13 +314,14 @@ async function getComputeResources() {
                 res = await Promise.all([azure.ml.REST.getWorkspaces(), azure.ml.REST.getVirtualClusters(), azure.ml.REST.getImages()]);
             } catch (err) {
                 showErrorMessageWithHelp('Failed to get compute resources.');
-                return;
+                throw 'failed_to_get_compute_resources';
             }
             resource.workspaces = res[0];
             resource.virtualClusters = res[1];
             resource.images = res[2];
             azure.ml.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
             saveResourceCache();
+            return 'success';
         }))()
     );
 }
@@ -420,7 +421,8 @@ async function newDatastore() {
     if (selected === undefined) return;
     let container = containers.find((v) => v.name == selected)!;
     // Get the name of the new datastore
-    let name = await vscode.window.showInputBox({prompt: 'Enter the name of the new datastore', ignoreFocusOut: true});
+    let defaultName = `datastore_${randomString(10)}`;
+    let name = await vscode.window.showInputBox({prompt: 'Enter the name of the new datastore', ignoreFocusOut: true, value: defaultName});
     if (name === undefined) return;
     // Set the auth type
     let newDatastore = await setDatastoreAuth(new azure.ml.Datastore(name, container, 'identity'), false);
@@ -484,7 +486,7 @@ export async function synchronize(jobcfg?: JobConfig) {
         showErrorMessageWithHelp('Failed to synchronize code. Datastore of the target io not found.');
         throw 'target_datastore_not_found';
     }
-    return vscode.window.withProgress(
+    return await vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false},
         (async (progress) => {
             progress.report({message: "Synchronizing code...", increment: 0});
@@ -556,7 +558,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     }
     if (errorMsgs.length > 0) {
         showErrorMessageWithHelp(`Failed to submit the job. Failed to build datastore specs for:\n${errorMsgs.join('\n')}`);
-        return 'failed_to_build_datastore_specs';
+        throw 'failed_to_build_datastore_specs';
     }
     let datastoreSpecs = datastoreSpecPromises.map((v) => (v as PromiseFulfilledResult<azure.ml.datastore.Spec>).value);
 
@@ -633,19 +635,20 @@ export async function submit() {
     let cfg: JobConfig = deepCopy(config);
     let argSweep = cfg.experiment.arg_sweep.filter((v) => v.trim() != '').join('\n').trim();
     if (argSweep.length == 0) {
-        return vscode.window.withProgress(
+        return await vscode.window.withProgress(
             {location: vscode.ProgressLocation.Notification, cancellable: false}, 
             (async (progress) => {
                 progress.report({message: "Submitting the job...", increment: 0});
                 try {await submitToAML(cfg, (increment) => progress.report({increment: increment}));}
-                catch (err) {return 'failed';}
+                catch (err) {throw 'failed';}
+                return 'success';
             })
         );
     }
     else {
         let argSweepParsed = ArgSweepParser.parse(argSweep);
-        if (argSweepParsed.length == 0) return 'failed';
-        return vscode.window.withProgress(
+        if (argSweepParsed.length == 0) throw 'failed';
+        return await vscode.window.withProgress(
             {location: vscode.ProgressLocation.Notification, cancellable: false}, 
             (async (progress) => {
                 let increment = 100 / (argSweepParsed.length + 1);
@@ -662,12 +665,13 @@ export async function submit() {
                     }
                  
                     try {await submitToAML(sweep_cfg);}
-                    catch (err) {return 'failed';}
+                    catch (err) {throw 'failed';}
 
                     progress.report({message: `(${i+1}/${argSweepParsed.length}) Submitting sweep jobs...`, increment: increment});
                 }
 
                 saveWorkspaceFile(`./userdata/jobs_history/${cfg.experiment.name}_${new Date().getTime()}_sweep.json`, JSON.stringify(cfg, null, 4));
+                return 'success';
             })
         );
     }

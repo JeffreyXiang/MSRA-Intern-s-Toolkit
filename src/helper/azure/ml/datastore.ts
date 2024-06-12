@@ -52,23 +52,25 @@ export async function buildBlobContainerSpec(datastore: Datastore) {
 
 export async function create(Workspace: Workspace, specFile: string): Promise<any> {
     outputChannel.appendLine(`[CMD] > az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`);
-    let proc = cp.spawnSync('az', ['ml', 'datastore', 'create', '-f', specFile, '-w', Workspace.name, '-g', Workspace.resourceGroup, '--subscription', Workspace.subscriptionId], {shell: true});
-    let stdout = proc.stdout.toString();
-    let stderr = proc.stderr.toString();
-    if (stdout) {
-        outputChannel.appendLine(`[CMD OUT] ${stdout}`);
-        return JSON.parse(stdout);
-    }
-    if (stderr) {
-        outputChannel.appendLine(`[CMD ERR] ${stderr}`);
-        console.error(`msra_intern_s_toolkit.createDatastore: stderr - ${stderr}`);
-        if (stderr.includes(`'ml' is misspelled or not recognized by the system.`)) {
-            throw 'azure_ml_ext_not_installed';
-        }
-    }
-    if (proc.error) {
-        outputChannel.appendLine(`[CMD ERR] ${proc.error.message}`);
-        console.error(`msra_intern_s_toolkit.createDatastore: error - ${proc.error.message}`);
-    }
-    throw 'failed_to_create_datastore';
+    return new Promise((resolve, reject) => {
+        cp.exec(`az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`, {}, (error, stdout, stderr) => {
+            if (stdout) {
+                outputChannel.appendLine(`[CMD OUT] ${stdout}`);
+                resolve(JSON.parse(stdout));
+            }
+            if (error) {
+                outputChannel.appendLine(`[CMD ERR] ${error.message}`);
+                console.error(`msra_intern_s_toolkit.createDatastore: error - ${error.message}`);
+                reject('failed_to_create_datastore');
+            }
+            if (stderr) {
+                outputChannel.appendLine(`[CMD ERR] ${stderr}`);
+                console.error(`msra_intern_s_toolkit.createDatastore: stderr - ${stderr}`);
+                if (stderr.includes(`'ml' is misspelled or not recognized by the system.`)) {
+                    reject('azure_ml_ext_not_installed');
+                }
+                reject('failed_to_create_datastore');
+            }
+        });
+    });
 }

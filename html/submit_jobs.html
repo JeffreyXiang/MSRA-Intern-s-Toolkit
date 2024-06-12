@@ -367,6 +367,13 @@
             if (io_list.children.length == 0) {
                 document.getElementById('no_io_prompt').style.display = 'block';
             }
+            config_changed('io', '', get_ios());
+        }
+
+        function delete_all_io() {
+            let io_list = document.getElementById('io_list');
+            io_list.innerHTML = '';
+            document.getElementById('no_io_prompt').style.display = 'block';
         }
 
         function get_ios() {
@@ -396,6 +403,7 @@
             document.getElementById('job_name').value        = config.experiment.job_name;
             document.getElementById('script').value          = config.experiment.script;
             document.getElementById('arg_sweep').value       = config.experiment.arg_sweep;
+            delete_all_io();
             for (let io of config.io) {
                 add_io(io);
             }

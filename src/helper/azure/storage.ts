@@ -33,7 +33,7 @@ export class StorageAccount {
     }
 
     static fromKey(name: string, key: string): StorageAccount {
-        let newAccount = new StorageAccount(name, `https://${name}.blob.core.windows.net`);
+        let newAccount = new StorageAccount(name, `https://${name}.blob.core.windows.net/`);
         newAccount.key = key;
         return newAccount;
     }
@@ -52,7 +52,7 @@ export class BlobContainer {
     constructor(storageAccount: StorageAccount, name: string) {
         this.storageAccount = storageAccount;
         this.name = name;
-        this.uri = `${storageAccount.uri}/${name}`;
+        this.uri = `${storageAccount.uri}${name}`;
     }
 
     static fromJSON(obj: any): BlobContainer {
@@ -96,93 +96,99 @@ export class SharedAccessSignature {
 
 export async function getAccounts(subscriptionId: string): Promise<StorageAccount[]> {
     outputChannel.appendLine(`[CMD] > az storage account list --subscription ${subscriptionId}`);
-    let proc = cp.spawnSync('az', ['storage', 'account', 'list', '--subscription', subscriptionId], {shell: true});
-    let stdout = proc.stdout.toString();
-    let stderr = proc.stderr.toString();
-    if (stdout) {
-        outputChannel.appendLine('[CMD OUT] ' + stdout);
-        let accounts: StorageAccount[] = [];
-        JSON.parse(stdout).forEach((element: any) => {
-            accounts.push(StorageAccount.fromSubscription(element.id, element.name, subscriptionId, element.resourceGroup, element.primaryEndpoints.blob));
+    return new Promise((resolve, reject) => {
+        cp.exec(`az storage account list --subscription ${subscriptionId}`, {}, (error, stdout, stderr) => {
+            if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
+                let accounts: StorageAccount[] = [];
+                JSON.parse(stdout).forEach((element: any) => {
+                    accounts.push(StorageAccount.fromSubscription(element.id, element.name, subscriptionId, element.resourceGroup, element.primaryEndpoints.blob));
+                });
+                resolve(accounts);
+            }
+            if (stderr) {
+                outputChannel.appendLine('[CMD ERR] ' + stderr);
+                console.error(`msra_intern_s_toolkit.getAccounts: stderr - ${stderr}`);
+                reject('failed_to_get_accounts');
+            }
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.getAccounts: error - ${error.message}`);
+                reject('failed_to_get_accounts');
+            }
         });
-        return accounts;
-    }
-    if (stderr) {
-        outputChannel.appendLine('[CMD ERR] ' + stderr);
-        console.error(`msra_intern_s_toolkit.getAccounts: stderr - ${stderr}`);
-    }
-    if (proc.error) {
-        outputChannel.appendLine('[CMD ERR] ' + proc.error.message);
-        console.error(`msra_intern_s_toolkit.getAccounts: error - ${proc.error.message}`);
-    }
-    throw 'failed_to_get_accounts';
+    });
 }
 
 export async function getContainers(account: StorageAccount): Promise<BlobContainer[]> {
-    let proc: cp.SpawnSyncReturns<Buffer>;
+    let cmd: string;
     if (account.key) {
-        outputChannel.appendLine(`[CMD] > az storage container list --account-name ${account.name} --account-key ${account.key} --auth-mode key`);
-        proc = cp.spawnSync('az', ['storage', 'container', 'list', '--account-name', account.name, '--account-key', account.key, '--auth-mode', 'key'], {shell: true});
+        cmd = `az storage container list --account-name ${account.name} --account-key ${account.key} --auth-mode key`;
     }
     else if (account.subscription) {
-        outputChannel.appendLine(`[CMD] > az storage container list --account-name ${account.name} --subscription ${account.subscription} --auth-mode login`);
-        proc = cp.spawnSync('az', ['storage', 'container', 'list', '--account-name', account.name, '--subscription', account.subscription, '--auth-mode', 'login'], {shell: true});
+        cmd = `az storage container list --account-name ${account.name} --subscription ${account.subscription} --auth-mode login`;
     }
     else {
         throw 'invalid_storage_account';
     }
-    let stdout = proc.stdout.toString();
-    let stderr = proc.stderr.toString();
-    if (stdout) {
-        outputChannel.appendLine('[CMD OUT] ' + stdout);
-        let containers: BlobContainer[] = [];
-        JSON.parse(stdout).forEach((element: any) => {
-            containers.push(new BlobContainer(account, element.name));
+    outputChannel.appendLine(`[CMD] > ${cmd}`);
+    return new Promise((resolve, reject) => {
+        cp.exec(cmd, {}, (error, stdout, stderr) => {
+            if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
+                let containers: BlobContainer[] = [];
+                JSON.parse(stdout).forEach((element: any) => {
+                    containers.push(new BlobContainer(account, element.name));
+                });
+                resolve(containers);
+            }
+            if (stderr) {
+                outputChannel.appendLine('[CMD ERR] ' + stderr);
+                console.error(`msra_intern_s_toolkit.getContainers: stderr - ${stderr}`);
+                reject('failed_to_get_containers');
+            }
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.getContainers: error - ${error.message}`);
+                reject('failed_to_get_containers');
+            }
         });
-        return containers;
-    }
-    if (stderr) {
-        outputChannel.appendLine('[CMD ERR] ' + stderr);
-        console.error(`msra_intern_s_toolkit.getContainers: stderr - ${stderr}`);
-    }
-    if (proc.error) {
-        outputChannel.appendLine('[CMD ERR] ' + proc.error.message);
-        console.error(`msra_intern_s_toolkit.getContainers: error - ${proc.error.message}`);
-    }
-    throw 'failed_to_get_containers';
+    });
 }
 
 export async function generateSAS(container: BlobContainer, durationDays: number = 7, permissions: string = 'acdlrw'): Promise<SharedAccessSignature> {
     let expiry = new Date();
     expiry.setDate(expiry.getDate() + durationDays);
     let expiryStr = expiry.toISOString().split('.')[0] + 'Z';
-    let proc: cp.SpawnSyncReturns<Buffer>;
+    let cmd: string;
     if (container.storageAccount.key) {
-        outputChannel.appendLine(`[CMD] > az storage container generate-sas --account-name ${container.storageAccount.name} --account-key ${container.storageAccount.key} --name ${container.name} --auth-mode key --expiry ${expiryStr} --permissions ${permissions}`);
-        proc = cp.spawnSync('az', ['storage', 'container', 'generate-sas', '--account-name', container.storageAccount.name, '--account-key', container.storageAccount.key, '--name', container.name, '--auth-mode', 'key', '--expiry', expiryStr, '--permissions', permissions], {shell: true});
+        cmd = `az storage container generate-sas --account-name ${container.storageAccount.name} --account-key ${container.storageAccount.key} --name ${container.name} --auth-mode key --expiry ${expiryStr} --permissions ${permissions}`;
     }
     else if (container.storageAccount.subscription) {
-        outputChannel.appendLine(`[CMD] > az storage container generate-sas --account-name ${container.storageAccount.name} --name ${container.name} --as-user --auth-mode login --expiry ${expiryStr} --permissions ${permissions} --https-only --subscription ${container.storageAccount.subscription}`);
-        proc = cp.spawnSync('az', ['storage', 'container', 'generate-sas', '--account-name', container.storageAccount.name, '--name', container.name, '--as-user', '--auth-mode', 'login', '--expiry', expiryStr, '--permissions', permissions, '--https-only', '--subscription', container.storageAccount.subscription], {shell: true});
+        cmd = `az storage container generate-sas --account-name ${container.storageAccount.name} --name ${container.name} --as-user --auth-mode login --expiry ${expiryStr} --permissions ${permissions} --https-only --subscription ${container.storageAccount.subscription}`;
     }
     else {
         throw 'invalid_storage_account';
     }
-    let stdout = proc.stdout.toString();
-    let stderr = proc.stderr.toString();
-    if (stdout) {
-        outputChannel.appendLine('[CMD OUT] ' + stdout);
-        return new SharedAccessSignature(stdout.trim().slice(1, -1), expiry);
-    }
-    if (stderr) {
-        outputChannel.appendLine('[CMD ERR] ' + stderr);
-        console.error(`msra_intern_s_toolkit.generateSAS: stderr - ${stderr}`);
-    }
-    if (proc.error) {
-        outputChannel.appendLine('[CMD ERR] ' + proc.error.message);
-        console.error(`msra_intern_s_toolkit.generateSAS: error - ${proc.error.message}`);
-    }
-    throw 'failed_to_generate_sas';
+    outputChannel.appendLine(`[CMD] > ${cmd}`);
+    return new Promise((resolve, reject) => {
+        cp.exec(cmd, {}, (error, stdout, stderr) => {
+            if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
+                resolve(new SharedAccessSignature(stdout.trim().slice(1, -1), expiry));
+            }
+            if (stderr) {
+                outputChannel.appendLine('[CMD ERR] ' + stderr);
+                console.error(`msra_intern_s_toolkit.generateSAS: stderr - ${stderr}`);
+                reject('failed_to_generate_sas');
+            }
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.generateSAS: error - ${error.message}`);
+                reject('failed_to_generate_sas');
+            }
+        });
+    });
 }
 
 export async function upload(localPath: string, remotePath: string, container: BlobContainer, kwargs?: {recursive?: boolean, excludePath?: string, excludePattern?: string, includePath?: string, includePattern?: string}, progress?: (increment: number) => void): Promise<void> {

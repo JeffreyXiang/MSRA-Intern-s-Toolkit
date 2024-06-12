@@ -144,21 +144,22 @@ export namespace  REST {
         ];
         if (bodyStr) args.push('--body', `"${bodyStr.replaceAll(`'`, `\\'`).replaceAll(`"`, `'`)}"`);
         outputChannel.appendLine('[CMD] > az ' + args.join(' '));
-        let proc = cp.spawnSync('az', args, {shell: true});
-        let stdout = proc.stdout.toString();
-        let stderr = proc.stderr.toString();
-        if (stdout) {
-            outputChannel.appendLine('[CMD OUT] ' + stdout);
-            return JSON.parse(stdout);
-        }
-        if (stderr) {
-            outputChannel.appendLine('[CMD ERR] ' + stderr);
-            throw stderr;
-        }
-        if (proc.error) {
-            outputChannel.appendLine('[CMD ERR] ' + proc.error.message);
-            throw proc.error.message;
-        }
+        return new Promise<any>((resolve, reject) => {
+            cp.exec('az ' + args.join(' '), {}, (error, stdout, stderr) => {
+                if (stdout) {
+                    outputChannel.appendLine('[CMD OUT] ' + stdout);
+                    resolve(JSON.parse(stdout));
+                }
+                if (stderr) {
+                    outputChannel.appendLine('[CMD ERR] ' + stderr);
+                    reject(stderr);
+                }
+                if (error) {
+                    outputChannel.appendLine('[CMD ERR] ' + error.message);
+                    reject(error.message);
+                }
+            });
+        });
     }
 
     export async function getWorkspaces() {
