@@ -1,6 +1,7 @@
 import * as cp from 'child_process'
 import {outputChannel} from '../../../extension'
 import { BlobContainer } from '../storage';
+import * as rest from '../rest';
 
 export class InstanceType {
     name: string;
@@ -127,135 +128,95 @@ export class Datastore {
     }
 }
 
-export namespace  REST {
-
-    export enum RESTMethod {
-        GET = 'GET',
-        POST = 'POST',
-        PUT = 'PUT',
-        DELETE = 'DELETE'
+export async function getWorkspaces() {
+    let response = await rest.request(
+        rest.RESTMethod.POST,
+        '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
+        {query: "resources | where type == 'microsoft.machinelearningservices/workspaces' | order by tolower(name) asc",}
+    );
+    let workspaces: Workspace[] = [];
+    for (let ws of response.data) {
+        workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup));
     }
+    
+    console.log('msra_intern_s_toolkit.helper.azureml.REST.getWorkspaces: Found ' + workspaces.length + ' workspaces');
+    console.log(workspaces);
+    return workspaces;
+}
 
-    export async function request(method: RESTMethod, uri: string, body: any | undefined = undefined) {
-        let bodyStr = body ? JSON.stringify(body) : undefined;
-        let args = ['rest',
-            '--method', method,
-            '--uri', uri,
-        ];
-        if (bodyStr) args.push('--body', `"${bodyStr.replaceAll(`'`, `\\'`).replaceAll(`"`, `'`)}"`);
-        outputChannel.appendLine('[CMD] > az ' + args.join(' '));
-        return new Promise<any>((resolve, reject) => {
-            cp.exec('az ' + args.join(' '), {}, (error, stdout, stderr) => {
-                if (stdout) {
-                    outputChannel.appendLine('[CMD OUT] ' + stdout);
-                    resolve(JSON.parse(stdout));
-                }
-                if (stderr) {
-                    outputChannel.appendLine('[CMD ERR] ' + stderr);
-                    reject(stderr);
-                }
-                if (error) {
-                    outputChannel.appendLine('[CMD ERR] ' + error.message);
-                    reject(error.message);
-                }
-            });
-        });
-    }
-
-    export async function getWorkspaces() {
-        let response = await request(
-            RESTMethod.POST,
-            '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
-            {query: "resources | where type == 'microsoft.machinelearningservices/workspaces' | order by tolower(name) asc",}
-        );
-        let workspaces: Workspace[] = [];
-        for (let ws of response.data) {
-            workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup));
+export async function getVirtualClusters() {
+    // Get virtual clusters
+    let response = await rest.request(
+        rest.RESTMethod.POST,
+        '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
+        {query: "resources | where type == 'microsoft.machinelearningservices/virtualclusters' | order by tolower(name) asc",}
+    );
+    let virtualClusters: VirtualCluster[] = [];
+    for (let vc of response.data) {
+        let newVC = new VirtualCluster(vc.id, vc.subscriptionId, vc.resourceGroup, vc.name, vc.location);
+        let instanceSeriesMap = new Map<string, InstanceSeries>();
+        for (let limit of vc.properties.managed.defaultGroupPolicyOverallQuotas.limits) {
+            if (!instanceSeriesMap.has(limit.id)) {
+                instanceSeriesMap.set(limit.id, new InstanceSeries(limit.id, limit.name));
+            }
+            let series = instanceSeriesMap.get(limit.id)!;
+            series.limit = {limit: limit.limit, used: limit.used};
         }
-        
-        console.log('msra_intern_s_toolkit.helper.azureml.REST.getWorkspaces: Found ' + workspaces.length + ' workspaces');
-        console.log(workspaces);
-        return workspaces;
-    }
-
-    export async function getVirtualClusters() {
-        // Get virtual clusters
-        let response = await request(
-            RESTMethod.POST,
-            '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
-            {query: "resources | where type == 'microsoft.machinelearningservices/virtualclusters' | order by tolower(name) asc",}
-        );
-        let virtualClusters: VirtualCluster[] = [];
-        for (let vc of response.data) {
-            let newVC = new VirtualCluster(vc.id, vc.subscriptionId, vc.resourceGroup, vc.name, vc.location);
-            let instanceSeriesMap = new Map<string, InstanceSeries>();
-            for (let limit of vc.properties.managed.defaultGroupPolicyOverallQuotas.limits) {
+        for (let location of Object.keys(vc.properties.managed.quotas)) {
+            let quota = vc.properties.managed.quotas[location as keyof typeof vc.properties.managed.quotas];
+            for (let limit of quota.limits) {
                 if (!instanceSeriesMap.has(limit.id)) {
                     instanceSeriesMap.set(limit.id, new InstanceSeries(limit.id, limit.name));
                 }
                 let series = instanceSeriesMap.get(limit.id)!;
-                series.limit = {limit: limit.limit, used: limit.used};
-            }
-            for (let location of Object.keys(vc.properties.managed.quotas)) {
-                let quota = vc.properties.managed.quotas[location as keyof typeof vc.properties.managed.quotas];
-                for (let limit of quota.limits) {
-                    if (!instanceSeriesMap.has(limit.id)) {
-                        instanceSeriesMap.set(limit.id, new InstanceSeries(limit.id, limit.name));
-                    }
-                    let series = instanceSeriesMap.get(limit.id)!;
-                    series.quota[limit.slaTier as keyof Quota].limit = limit.limit;
-                    series.quota[limit.slaTier as keyof Quota].used = limit.used;
-                }
-            }
-            newVC.instanceSeries = Array.from(instanceSeriesMap.values());
-            virtualClusters.push(newVC);
-        }
-
-        // Get instance types
-        let requests = [];
-        for (let vc of virtualClusters) {
-            requests.push({
-                HttpMethod: RESTMethod.GET,
-                RelativeUrl: `/subscriptions/${vc.subscriptionId}/providers/Microsoft.MachineLearningServices/locations/${vc.location}/instancetypeseries?api-version=2021-03-01-preview`
-            });
-        }
-        let responses = await request(
-            RESTMethod.POST,
-            '/batch?api-version=2020-06-01',
-            {requests: requests}
-        );
-        responses = responses.responses;
-        for (let i = 0; i < responses.length; i++) {
-            response = responses[i].content;
-            let vc = virtualClusters[i];
-            for (let instanceType of response.value) {
-                let series = vc.instanceSeries.find((series) => series.id == instanceType.instanceTypeSeriesId);
-                if (series) {
-                    series.instanceTypes.push(
-                        new InstanceType(instanceType.name.replace('Singularity.', ''), instanceType.description, instanceType.numberOfCores, instanceType.numberOfGPUs)
-                    );
-                }
+                series.quota[limit.slaTier as keyof Quota].limit = limit.limit;
+                series.quota[limit.slaTier as keyof Quota].used = limit.used;
             }
         }
-
-        console.log('msra_intern_s_toolkit.helper.azureml.REST.getVirtualClusters: Found ' + virtualClusters.length + ' virtual clusters');
-        console.log(virtualClusters);
-        return virtualClusters;
+        newVC.instanceSeries = Array.from(instanceSeriesMap.values());
+        virtualClusters.push(newVC);
     }
 
-    export async function getImages(InstanceTypeName: string = 'ND5_v2g1') {
-        let response = await request(
-            RESTMethod.GET,
-            `https://ml.azure.com/api/westus2/virtualcluster/rp/subscriptions/22da88f6-1210-4de2-a5a3-da4c7c2a1213/managedComputeImages?api-version=2021-03-01-preview&instanceType=Singularity.${InstanceTypeName}`
-        );
-        let images: Image[] = [];
-        for (let key of Object.keys(response)) {
-            images.push(new Image(key, response[key]));
-        }
-        console.log('msra_intern_s_toolkit.helper.azureml.REST.getImages: Found ' + images.length + ' images');
-        console.log(images);
-        return images;
+    // Get instance types
+    let requests = [];
+    for (let vc of virtualClusters) {
+        requests.push({
+            httpMethod: rest.RESTMethod.GET,
+            relativeUrl: `/subscriptions/${vc.subscriptionId}/providers/Microsoft.MachineLearningServices/locations/${vc.location}/instancetypeseries?api-version=2021-03-01-preview`
+        });
     }
+    let responses = await rest.batchRequest(requests);
+    responses = responses.responses;
+    for (let i = 0; i < responses.length; i++) {
+        response = responses[i].content;
+        let vc = virtualClusters[i];
+        for (let instanceType of response.value) {
+            let series = vc.instanceSeries.find((series) => series.id == instanceType.instanceTypeSeriesId);
+            if (series) {
+                series.instanceTypes.push(
+                    new InstanceType(instanceType.name.replace('Singularity.', ''), instanceType.description, instanceType.numberOfCores, instanceType.numberOfGPUs)
+                );
+            }
+        }
+    }
+
+    console.log('msra_intern_s_toolkit.helper.azureml.REST.getVirtualClusters: Found ' + virtualClusters.length + ' virtual clusters');
+    console.log(virtualClusters);
+    return virtualClusters;
+}
+
+export async function getImages(InstanceTypeName: string = 'ND5_v2g1') {
+    let response = await rest.request(
+        rest.RESTMethod.GET,
+        `https://ml.azure.com/api/westus2/virtualcluster/rp/subscriptions/22da88f6-1210-4de2-a5a3-da4c7c2a1213/managedComputeImages?api-version=2021-03-01-preview&instanceType=Singularity.${InstanceTypeName}`
+    );
+    let images: Image[] = [];
+    for (let key of Object.keys(response)) {
+        images.push(new Image(key, response[key]));
+    }
+    console.log('msra_intern_s_toolkit.helper.azureml.REST.getImages: Found ' + images.length + ' images');
+    console.log(images);
+    return images;
 }
 
 export function findDefaultWorkspace(workspaces: Workspace[], virtualClusters: VirtualCluster[]) {
