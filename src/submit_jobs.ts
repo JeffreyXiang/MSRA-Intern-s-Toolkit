@@ -311,7 +311,7 @@ async function getComputeResources() {
             progress.report({message: "Fetching compute resources info..."});
             let res;
             try {
-                res = await Promise.all([azure.ml.REST.getWorkspaces(), azure.ml.REST.getVirtualClusters(), azure.ml.REST.getImages()]);
+                res = await Promise.all([azure.ml.getWorkspaces(), azure.ml.getVirtualClusters(), azure.ml.getImages()]);
             } catch (err) {
                 showErrorMessageWithHelp('Failed to get compute resources.');
                 throw 'failed_to_get_compute_resources';

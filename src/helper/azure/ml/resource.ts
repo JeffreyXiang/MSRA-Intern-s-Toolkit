@@ -139,7 +139,7 @@ export async function getWorkspaces() {
         workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup));
     }
     
-    console.log('msra_intern_s_toolkit.helper.azureml.REST.getWorkspaces: Found ' + workspaces.length + ' workspaces');
+    console.log('msra_intern_s_toolkit.helper.azureml.getWorkspaces: Found ' + workspaces.length + ' workspaces');
     console.log(workspaces);
     return workspaces;
 }
@@ -186,7 +186,6 @@ export async function getVirtualClusters() {
         });
     }
     let responses = await rest.batchRequest(requests);
-    responses = responses.responses;
     for (let i = 0; i < responses.length; i++) {
         response = responses[i].content;
         let vc = virtualClusters[i];
@@ -200,7 +199,7 @@ export async function getVirtualClusters() {
         }
     }
 
-    console.log('msra_intern_s_toolkit.helper.azureml.REST.getVirtualClusters: Found ' + virtualClusters.length + ' virtual clusters');
+    console.log('msra_intern_s_toolkit.helper.azureml.getVirtualClusters: Found ' + virtualClusters.length + ' virtual clusters');
     console.log(virtualClusters);
     return virtualClusters;
 }
@@ -214,7 +213,7 @@ export async function getImages(InstanceTypeName: string = 'ND5_v2g1') {
     for (let key of Object.keys(response)) {
         images.push(new Image(key, response[key]));
     }
-    console.log('msra_intern_s_toolkit.helper.azureml.REST.getImages: Found ' + images.length + ' images');
+    console.log('msra_intern_s_toolkit.helper.azureml.getImages: Found ' + images.length + ' images');
     console.log(images);
     return images;
 }
