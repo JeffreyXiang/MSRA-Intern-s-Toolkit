@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Privileged Identity Management</title>
+    <link rel="stylesheet" href="${{codicon_css_uri}}">
+    <style>
+        body {
+            user-select: none;
+        }
+
+        div.spacer {
+            flex-grow: 1;
+        }
+
+        div.groupbar {
+            width: calc(100% + 20px);
+            margin-left: -15px;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        div.groupbar .info {
+            overflow: hidden;
+            flex: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        div.groupbar .info .name {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--vscode-editor-foreground);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        div.groupbar .info .desc {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: gray;
+            font-size: 10px;
+        }
+
+        div.groupbar_button {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        div.groupbar_button i {
+            font-size: 14px !important;
+        }
+
+        div.groupbar_button:hover {
+            background: rgb(128, 128, 128, 0.2);
+        }
+
+        div.groupbar_button:active {
+            background: rgb(128, 128, 128, 0.3);
+        }
+
+        div.item {
+            position: relative;
+            height: 24px;
+            margin: 5px 0px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgb(128, 128, 128, 0.1);
+        }
+
+        div.item .name {
+            height: 100%;
+            margin-left: 10px;
+            margin-right: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        div.item .state {
+            height: 100%;
+            margin-left: 5px;
+            margin-right: 10px;
+            color: gray;
+            font-size: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        div.auto_activate {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        div.auto_activate i {
+            position: relative;
+            left: -0.5px;
+            font-size: 14px !important;
+        }
+
+        div.auto_activate:hover {
+            background: rgb(128, 128, 128, 0.2);
+        }
+
+        div.auto_activate:active {
+            background: rgb(128, 128, 128, 0.3);
+        }
+
+        div.auto_activate.checked {
+            background: rgb(222, 6, 26);
+            color: white;
+        }
+
+        div.auto_activate.checked:hover {
+            background: rgb(192, 6, 26);
+        }
+
+        div.auto_activate.checked:active {
+            background: rgb(162, 4, 16);
+        }
+
+        div.action {
+            height: 20px;
+            padding: 0px 5px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            font-size: 12px;
+            display: flex;
+            white-space: nowrap;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        div.action:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        div.progress {
+            position: absolute;
+            z-index: -1;
+            top: 0px;
+            left: 0px;
+            height: 100%;
+            width: 0px;
+            background: rgb(0, 255, 0, 0.25);
+            transition-duration: 0.25s;
+            transition-property: width;
+            transition-timing-function: ease;
+        }
+    </style>
+    <script>
+        const vscode = acquireVsCodeApi();
+        var roles = [];
+
+        function toggle_display(button) {
+            let groupbar = button.parentElement;
+            let group_content = groupbar.nextElementSibling;
+            if (group_content.style.display == 'none') {
+                group_content.style.display = 'block';
+                button.innerHTML = '<i class="codicon codicon-chevron-down"></i>';
+            }
+            else {
+                group_content.style.display = 'none';
+                button.innerHTML = '<i class="codicon codicon-chevron-right"></i>';
+            }
+        }
+
+        toggle_auto_activate = (element) => {
+            if (element.classList.contains('checked')) {
+                element.classList.remove('checked');
+                send_message({command: 'disableAutoActivation', name: element.parentElement.id});
+            }
+            else {
+                element.classList.add('checked');
+                send_message({command: 'enableAutoActivation', name: element.parentElement.id});
+            }
+        }
+
+        function activate(name) {
+            let element = document.getElementById(name);
+            element.getElementsByClassName('state')[0].innerHTML = 'activating';
+            send_message({command: 'activate', name: name});
+        }
+
+        function deactivate(name) {
+            let element = document.getElementById(name);
+            element.getElementsByClassName('state')[0].innerHTML = 'deactivating';
+            send_message({command: 'deactivate', name: name});
+        }
+
+        window.addEventListener('message', event => {
+            const command = event.data.command;
+            const params = event.data.params;
+            switch (command) {
+                case 'setContent':
+                    if (params.hasOwnProperty('roles')) {
+                        roles = params.roles;
+
+                        if (roles.length == 0) {
+                            document.body.innerHTML = '<div style="margin: 10px;">No available roles.</div>';
+                            break;
+                        }
+
+                        // Build all the elements
+                        let scopes = [];
+                        let groupbars = [];
+                        let rolelists = [];
+                        for (let i = 0; i < roles.length; i++) {
+                            if (!scopes.includes(roles[i].scope)) {
+                                scopes.push(roles[i].scope);
+                                let new_groupbar = document.createElement('div');
+                                new_groupbar.className = 'groupbar';
+                                new_groupbar.innerHTML = `
+                                    <div class="groupbar_button" onclick="toggle_display(this)">
+                                        <i class="codicon codicon-chevron-down"></i>
+                                    </div>
+                                    <div class="info">
+                                        <div class="name">${roles[i].resourceName}</div>
+                                        <div class="desc">${roles[i].resourceType}</div>
+                                    </div>
+                                `;
+                                groupbars.push(new_groupbar);
+                                rolelists.push([]);
+                            }
+                            let idx = scopes.indexOf(roles[i].scope);
+                            let new_item = document.createElement('div');
+                            new_item.className = 'item';
+                            new_item.id = roles[i].name;
+                            new_item.innerHTML = `
+                                <div class="progress"></div>
+                                <div class="name">${roles[i].displayName}</div>
+                                <div class="spacer"></div>
+                                <div class="auto_activate` +
+                                (params.hasOwnProperty('autoActivationEnabled') && params.autoActivationEnabled[roles[i].name] ? ' checked' : '') +
+                                `", onclick="toggle_auto_activate(this)", title="Auto activate when expired">
+                                    <i class="codicon codicon-watch"></i>
+                                </div>
+                                <div class="state">` +
+                                    (roles[i].assignmentType == 'Activated' ? `<div class="action", onclick="deactivate('${roles[i].name}')">Deactivate</div>` :
+                                    `<div class="action", onclick="activate('${roles[i].name}')">Activate</div>`) +
+                                `</div>
+                            `;
+                            if (roles[i].assignmentType == 'Activated') {
+                                new_item.getElementsByClassName('progress')[0].style.width = '100%';
+                            }
+                            rolelists[idx].push(new_item);
+                        }
+
+                        // Append all the elements
+                        document.body.innerHTML = '';
+                        for (let i = 0; i < groupbars.length; i++) {
+                            document.body.appendChild(groupbars[i]);
+                            let rolelist = document.createElement('div');
+                            rolelist.className = 'list';
+                            for (let j = 0; j < rolelists[i].length; j++) {
+                                rolelist.appendChild(rolelists[i][j]);
+                            }
+                            document.body.appendChild(rolelist);
+                        }
+                    }
+                    break;
+                case 'update':
+                    let element = document.getElementById(params.name);
+                    element.getElementsByClassName('state')[0].innerHTML = (
+                        params.state == 'activated' ? `<div class="action", onclick="deactivate('${params.name}')">Deactivate</div>` :
+                        params.state == 'deactivated' ? `<div class="action", onclick="activate('${params.name}')">Activate</div>` :
+                        `${params.state}`
+                    );
+                    element.getElementsByClassName('progress')[0].style.width = (
+                        params.state == 'activated' ? '100%' :
+                        params.state == 'deactivated' ? '0%' :
+                        '50%'
+                    );
+                    break;
+            }
+        })
+
+        function send_message(data) {
+            vscode.postMessage(data);
+        }
+
+        window.onload = () => {
+            send_message({command: 'getContent'});
+        }
+    </script>
+</head>
+<body>
+    <div style="margin: 10px;">Refresh to get available roles.</div>
+</body>
+</html>

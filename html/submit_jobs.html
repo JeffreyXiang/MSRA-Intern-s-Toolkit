@@ -315,7 +315,7 @@
             return {left: x, top: y};
         }
 
-        function toggle_display(button, group) {
+        function toggle_display(button) {
             let groupbar = button.parentElement;
             let group_content = groupbar.nextElementSibling;
             if (group_content.style.display == 'none') {
@@ -775,7 +775,7 @@
     <div id="dropdown"></div>
     <div id="normal">
         <div class="groupbar">
-            <div class="groupbar_button" onclick="toggle_display(this, 'cluster_group')">
+            <div class="groupbar_button" onclick="toggle_display(this)">
                 <i class="codicon codicon-chevron-down"></i>
             </div>
             Cluster
@@ -793,7 +793,7 @@
         </div>
         <div id="no_resource_prompt" style="color: gray; text-align: center;">No available resource.</div>
         <div class="groupbar">
-            <div class="groupbar_button" onclick="toggle_display(this, 'io_group')">
+            <div class="groupbar_button" onclick="toggle_display(this)">
                 <i class="codicon codicon-chevron-down"></i>
             </div>
             IO
@@ -807,7 +807,7 @@
             <div id="no_io_prompt" style="color: gray; text-align: center;">No IO configured.</div>
         </div>    
         <div class="groupbar">
-            <div class="groupbar_button" onclick="toggle_display(this, 'environment_group')">
+            <div class="groupbar_button" onclick="toggle_display(this)">
                 <i class="codicon codicon-chevron-down"></i>
             </div>
             Environment
@@ -817,7 +817,7 @@
             <div class="item"><div class="label">Image:</div><input id="image" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
         </div>
         <div class="groupbar">
-            <div class="groupbar_button" onclick="toggle_display(this, 'synchronization_group')">
+            <div class="groupbar_button" onclick="toggle_display(this)">
                 <i class="codicon codicon-chevron-down"></i>
             </div>
             Synchronization
@@ -828,7 +828,7 @@
             <div class="item"><div class="label">Ignore Dir:</div><input id="ignore_dir" type="text" onchange="config_changed('synchronization', 'ignore_dir')"></div>
         </div>
         <div class="groupbar">
-            <div class="groupbar_button" onclick="toggle_display(this, 'experiment_group')">
+            <div class="groupbar_button" onclick="toggle_display(this)">
                 <i class="codicon codicon-chevron-down"></i>
             </div>
             Experiment
