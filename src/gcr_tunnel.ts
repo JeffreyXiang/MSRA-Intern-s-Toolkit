@@ -43,7 +43,7 @@ export class Tunnel {
     }
 }
 
-var tunnels: Array<Tunnel>;
+var tunnels: Array<Tunnel> = [];
 
 var ui: GCRTunnelView | undefined = undefined;
 
@@ -424,6 +424,34 @@ function update(i: number) {
     }
 }
 
+function saveGCRTunnelCache() {
+    let cachePath = `./userdata/${account.alias}/gcr_tunnel.json`;
+    saveFile(cachePath, JSON.stringify(tunnels.map((v) => v.getSetting()), null, 4));
+}
+
+function loadGCRTunnelCache() {
+    let cachePath = `./userdata/${account.alias}/gcr_tunnel.json`;
+    if (exists(cachePath)) {
+        let cache = JSON.parse(getFile(cachePath));
+        tunnels = cache.map((v: TunnelSetting) => new Tunnel(v));
+    }
+}
+
+export function loggedOut() {
+    tunnels = [];
+    refreshUI();
+}
+
+export async function loggedIn() {
+    loadGCRTunnelCache();
+    refreshUI();
+}
+
+function refresh() {
+    saveGCRTunnelCache();
+    refreshUI();
+}
+
 export function init() {
     outputChannel.appendLine('[INFO] Initializing GCR tunnel module...');
     let isSupported = supportedOS.includes(process.platform);
@@ -434,10 +462,6 @@ export function init() {
         vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.deleteGCRTunnel', () => {deleteTunnel()}));
         vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.openGCRTunnel', () => {openTunnel()}));
         vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.closeGCRTunnel', () => {closeTunnel()}));
-
-        tunnels = exists('./userdata/gcr_tunnel.json') ?
-            JSON.parse(getFile('./userdata/gcr_tunnel.json')).map((v: TunnelSetting) => new Tunnel(v)) :
-            [];
     }
 
     ui = new GCRTunnelView();
@@ -460,9 +484,4 @@ export function refreshUI() {
         if (isSupported) ui.setContent(tunnels);
         else ui.unsupported();
     }
-}
-
-function refresh() {
-    saveFile('./userdata/gcr_tunnel.json', JSON.stringify(Array(tunnels.length).fill(null).map((_, i) => tunnels[i].getSetting()), null, 4));
-    refreshUI();
 }

@@ -4,6 +4,8 @@ import * as process from 'process'
 import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp} from './utils'
 import * as submitJobs from './submit_jobs'
+import * as gcrTunnel from './gcr_tunnel'
+import * as pim from './pim'
 
 var azureStatusBar: vscode.StatusBarItem;
 export var domain: string;
@@ -11,6 +13,18 @@ export var alias: string;
 export var isLoggedIn: boolean | undefined = undefined;
 var bearerToken: string | undefined = undefined;
 var tokenExpireTime: number | undefined = undefined;
+
+function loggedIn() {
+    submitJobs.loggedIn();
+    gcrTunnel.loggedIn();
+    pim.loggedIn();
+}
+
+function loggedOut() {
+    submitJobs.loggedOut();
+    gcrTunnel.loggedOut();
+    pim.loggedOut();
+}
 
 async function checkAccount() {
     outputChannel.appendLine('[CMD] > az account show');
@@ -22,7 +36,7 @@ async function checkAccount() {
                     domain = selectedItem;
                     let username = JSON.parse(stdout).user.name;
                     alias = username.split('@')[0];
-                    submitJobs.loggedIn();
+                    loggedIn();
                     isLoggedIn = true;
                     vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
                     azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
@@ -77,7 +91,7 @@ function login() {
                             outputChannel.appendLine('[CMD OUT] ' + sdata);
                             let username = JSON.parse(sdata)[0].user.name;
                             alias = username.split('@')[0];
-                            submitJobs.loggedIn();
+                            loggedIn();
                             isLoggedIn = true;
                             vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', true);
                             azureStatusBar.text = `$(msra-intern-s-toolkit) Login as: ${username}`;
@@ -124,7 +138,7 @@ function logout() {
             outputChannel.appendLine('[CMD] > az logout');
             cp.execSync('az logout');
             isLoggedIn = false;
-            submitJobs.loggedOut();
+            loggedOut();
             vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isLoggedIn', false);
             azureStatusBar.text = '$(msra-intern-s-toolkit) Click to login';
         }

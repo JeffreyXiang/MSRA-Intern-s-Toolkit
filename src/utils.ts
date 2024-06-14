@@ -27,6 +27,22 @@ export function deepCopy(obj: any): any {
     throw new Error("Unable to copy obj! Its type isn't supported.");
 }
 
+export function mapToObj(map: Map<any, any>): any {
+    let obj: any = {};
+    map.forEach((value, key) => {
+        obj[key] = value;
+    });
+    return obj;
+}
+
+export function objToMap(obj: any): Map<any, any> {
+    let map = new Map();
+    Object.keys(obj).forEach(key => {
+        map.set(key, obj[key]);
+    });
+    return map;
+}
+
 export function showErrorMessageWithHelp(text: string){
     vscode.window.showErrorMessage(text, 'Helps' ,'OK').then((choice) => {
         if (choice == 'Helps'){
