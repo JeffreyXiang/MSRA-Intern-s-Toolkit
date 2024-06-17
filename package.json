@@ -3,7 +3,7 @@
 	"displayName": "MSRA Intern's Toolkit",
 	"description": "",
 	"icon": "color-icon.png",
-	"version": "1.4.1",
+	"version": "2.0.0-nightly.20240617",
 	"publisher": "jianfeng-xiang",
 	"author": {
 		"name": "Jianfeng Xiang",
@@ -46,6 +46,11 @@
 			{
 				"command": "msra_intern_s_toolkit.openGCRTunnel",
 				"title": "MSRA Intern's Toolkit: Close GCR Tunnel"
+			},
+			{
+				"command": "msra_intern_s_toolkit.refreshPIMRoles",
+				"title": "Refresh PIM Roles",
+				"icon": "$(refresh)"
 			}
 		],
 		"configuration": {
@@ -92,9 +97,30 @@
 				},
 				{
 					"type": "webview",
+					"id": "msra_intern_s_toolkit_view_PIM",
+					"name": "Privileged Identity Management",
+					"when": "msra_intern_s_toolkit.isStarted && msra_intern_s_toolkit.isLoggedIn"
+				},
+				{
+					"type": "webview",
 					"id": "msra_intern_s_toolkit_view_GCRTunnel",
 					"name": "GCR Tunnel",
 					"when": "msra_intern_s_toolkit.isStarted && msra_intern_s_toolkit.isLoggedIn"
+				}
+			]
+		},
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "msra_intern_s_toolkit.refreshPIMRoles",
+					"when": "false"
+				}
+			],
+			"view/title": [
+				{
+					"command": "msra_intern_s_toolkit.refreshPIMRoles",
+					"when": "view == msra_intern_s_toolkit_view_PIM",
+					"group": "navigation"
 				}
 			]
 		},
@@ -129,26 +155,25 @@
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
-		"@types/vscode": "^1.32.0",
 		"@types/glob": "^7.1.4",
 		"@types/mocha": "^9.0.0",
 		"@types/node": "14.x",
+		"@types/vscode": "^1.32.0",
 		"@typescript-eslint/eslint-plugin": "^4.31.1",
 		"@typescript-eslint/parser": "^4.31.1",
+		"@vscode/test-electron": "^1.6.2",
 		"eslint": "^7.32.0",
 		"glob": "^7.1.7",
 		"mocha": "^9.1.1",
-		"typescript": "^4.4.3",
 		"ts-loader": "^9.2.5",
+		"typescript": "^4.4.3",
 		"webpack": "^5.52.1",
-		"webpack-cli": "^4.8.0",
-		"@vscode/test-electron": "^1.6.2"
+		"webpack-cli": "^4.8.0"
 	},
 	"__metadata": {
 		"publisherDisplayName": "Jianfeng Xiang"
 	},
 	"dependencies": {
-		"@vscode/codicons": "0.0.36",
 		"typescript-parsec": "^0.3.4",
 		"yaml": "^2.4.3"
 	}
