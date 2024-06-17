@@ -11,6 +11,28 @@ export class Subscription {
     }
 }
 
+export async function getAccessToken(): Promise<string> {
+    outputChannel.appendLine('[CMD] > az account get-access-token');
+    return new Promise((resolve, reject) => {
+        cp.exec('az account get-access-token', {}, (error, stdout, stderr) => {
+            if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
+                resolve(JSON.parse(stdout).accessToken);
+            }
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.getAccessToken: error - ${error.message}`);
+                reject('failed_to_get_access_token');
+            }
+            if (stderr) {
+                outputChannel.appendLine('[CMD ERR] ' + stderr);
+                console.error(`msra_intern_s_toolkit.getAccessToken: stderr - ${stderr}`);
+                reject('failed_to_get_access_token');
+            }
+        });
+    });
+}
+
 export async function getSubscriptions(): Promise<Subscription[]> {
     outputChannel.appendLine('[CMD] > az account list');
     return new Promise((resolve, reject) => {
