@@ -52,19 +52,20 @@ export async function request(method: RESTMethod, uri: string, body?: any, heade
         headers['Content-Type'] = 'application/json';
     }
     outputChannel.appendLine(`[REST] > ${method.toUpperCase()} ${uri} ${JSON.stringify(body)} ${JSON.stringify(headers)}`);
-    let response = await axios.request({
-        method: method,
-        url: uri,
-        baseURL: 'https://management.azure.com',
-        data: body,
-        headers: headers,
-    });
-    if (response.status < 200 || response.status >= 300) {
-        outputChannel.appendLine(`[REST ERR] ${response.status} ${response.statusText}`);
-        throw response.data;
+    try {
+        let response = await axios.request({
+            method: method,
+            url: uri,
+            baseURL: 'https://management.azure.com',
+            data: body,
+            headers: headers,
+        });
+        outputChannel.appendLine(`[REST OUT] ${JSON.stringify(response.data)}`);
+        return response.data;
+    } catch (error: any) {
+        outputChannel.appendLine(`[REST ERR] ${error.response.status} ${JSON.stringify(error.response.data)}`);
+        throw error.response.data;
     }
-    outputChannel.appendLine(`[REST OUT] ${JSON.stringify(response.data)}`);
-    return response.data;
 }
 
 export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUrl: string, content?: any}[]) {
