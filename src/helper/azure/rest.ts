@@ -63,8 +63,22 @@ export async function request(method: RESTMethod, uri: string, body?: any, heade
         outputChannel.appendLine(`[REST OUT] ${JSON.stringify(response.data)}`);
         return response.data;
     } catch (error: any) {
-        outputChannel.appendLine(`[REST ERR] ${error.response.status} ${JSON.stringify(error.response.data)}`);
-        throw error.response.data;
+        if (error.response) {
+            // The request was made and the server responded with a status code
+            // that falls out of the range of 2xx
+            outputChannel.appendLine(`[REST ERR] ${error.response.status} ${JSON.stringify(error.response.data)}`);
+            throw error.response.data;
+        } else if (error.request) {
+            // The request was made but no response was received
+            // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+            // http.ClientRequest in node.js
+            outputChannel.appendLine(`[REST ERR] No response received`);
+            throw 'no_response_received'
+        } else {
+            // Something happened in setting up the request that triggered an Error
+            outputChannel.appendLine(`[REST ERR] Bad request ${error.message}`);
+            throw error.message;
+        }        
     }
 }
 
