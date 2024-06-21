@@ -791,6 +791,7 @@ export function refreshUI(params?: uiParams) {
 }
 
 export function loggedOut() {
+    resource = new Resource();
     ui.setContent({resource: undefined});
 }
 

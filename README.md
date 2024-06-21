@@ -1,41 +1,46 @@
 # MSRA Intern's Toolkit
 
-MSRA Intern's Toolkit is a VS Code extension for research interns in MSRA (Microsoft Research Asia) to simplify some of the troublesome but frequently used process including submitting jobs to clusters, opening tunnels to GCR sandboxes, etc.
+MSRA Intern's Toolkit is a VS Code extension for research interns in MSRA (Microsoft Research Asia) to simplify some of the troublesome but frequently used process including submitting jobs to clusters, privileged identity management (PIM) for Azure, opening tunnels to GCR sandboxes, etc.
 
 This extension provide you a intuitive and interactive way to deal with these annoying process. Just get rid of those scripts that nobody can remember and embrace this convinient user interface.
 
-## Features
+## Screenshots
 
-![feature](image/feature.jpg)
+![](image/screenshot.png)
 
 ## Requirements
 * First of all, when using GCR. you must have a Linux SSH key generated and submitted to the GCR Pubkey Manager. For instructions in completing this setup, please reference [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
-* Install Azure CLI with version higher than 2.32. Latest: [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
-* * You can check your Azure CLI version with: `az version --output table`.
-* Install the Azure CLI ssh extension: `az extension add --name ssh`.
-* Make sure AzCopy is installed. Learn how to install it from [Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Learn](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10).
-* Only for Windows machine, to use GCR tunnels, make sure Powershell and OpenSSH is installed. Learn how to install them from [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) and [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui).
+* Install Azure CLI with latest version. see [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
+  * You can check your Azure CLI version with: `az version --output table`.
+* Install the Azure CLI Machine Learning extension: `az extension add --name ml`.
+* Install the Azure CLI Bastion extension: `az extension add --name bastion`.
+* To use GCR tunnels, make sure OpenSSH is installed. Learn how to install it from [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui).
 
 ## Usage
 
 First of all, as the welcome says, login to Azure with the **Click to login** button in the status bar. This will open a page in your default web browser. Follow the guidance to login. After the page returns, just wait a second before the extension get your account information. Then you can get access to the tools.
 
+**Quick Jump:**
+
+* [Submit Jobs](#submit-jobs)
+* [Privileged Identity Management (PIM)](#privileged-identity-management-pim)
+* [GCR Tunnel](#gcr-tunnel)
+
 ### Submit Jobs
 
-* When running for the first time, there will be a message for you to setup conda environment. This is because the extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. Press **Yes** and wait until finished before continue. You can also manual setup with:
-```
-conda create -n msra-intern-s-toolkit python=3.10
-conda activate msra-intern-s-toolkit
-pip install azure-ai-ml azure-identity
-```
-* Fill the form and press **Submit**. If everything is ok, you shall get a success message with job id after a while.
-* If you want to load the config of submitted jobs. Press **Load** and select it in submission history.
+* Azure ML Jobs work with **Clusters**, **Datastores** and **Environments**:
+  * **Clusters** are the computing resources where your job will run. You can choose the number and type of GPUs/CPUs with **Instance Type** and **Node Count**.
+  * **Datastores** are the blob container where your data and code are stored. Jobs will access the data and code from the specified **Datastore**.
+  * **Environments** are the software environment where your job will run. This tool only supports choosing from curated images. You can run a setup script before the experiment to install required packages.
+* Fill the form following the [guidance](#about-the-submission-config) and press **Submit** to submit the job. If everything is ok, you shall get a success message with job id and AML Studio link after a while. If not, you will get an error message. You can check the error message in the output panel.
+* Submission history is saved. You can also save the submission config to a file and load it later with **Save** and **Load** buttons.
+* To synchronize the code from local working directory to the blob container, configure **Synchronization** group and press **Synchronize** button. This will copy the code to the specified path on the blob container.
 
 #### About the submission config:
 
 **Cluster**
 
-Cluster zone sets which virtual cluster and worlspace to submit the job, how many nodes and gpus per nodes to use and priority.
+Cluster zone sets which virtual cluster and workspace to submit the job, how many nodes and gpus per nodes to use and priority.
 
 * **Virtual Cluster:** The detailed information of each virtual cluster can be found in the dropdown list, including available GPU types and numbers. Choose the one that fits your job best.
 * **Workspace:** The workspace where you can monitor and manage your jobs. Some of the virtual clusters may have default workspaces. By selecting a virtual cluster, the workspace will be automatically set. If not, you can choose one from the dropdown list.
@@ -46,32 +51,33 @@ Cluster zone sets which virtual cluster and worlspace to submit the job, how man
 
 For more information about virtual clusters, referring to [Singularity Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4712/Singularity-Overview).
 
-**Storage**
+**IO**
 
-Storage zone sets the working directory where your script will run. It must be somewhere on the Azure Storage. So, don't forget to upload the code to your blob container before submitting the job. Since this is troublesome, I recommend to work using GCR sandbox with your blob countainer mounted as a local disk. For more information, see [Linux Sandbox Getting Started - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/531/Linux-Sandbox-Getting-Started).
+IO zone sets the datastores and paths your job can access. Multiple datastores can be added. Press **+** button on the top right corner to add a new IO configuration. Press **x** button on the top left corner of each IO configuration to remove it. The configuration includes:
 
-* **Datastore:** Arbitrary name for your storage account. Letters should be lowercase.
-* **Account:** Storage account name in Azure Storage.
-* **Acount Key:** Key of your account (second row in properties).
-* **Countainer:** Name of your blob container.
-* **SAS Token:** The SAS token of your blob container. Right click the container to generate one.
+* **Name:** Arbitrary name for the IO, the job script will use `${{name}}` as the reference to this IO.
+* **Datastore:** Name of the datastore to access. The datastores can be found in the dropdown list. A **Manage Datastore** button is provided in the dropdown list to manage the datastores. Note that when submitting the job, the tool will always try to create a new datastore in the workspace with the name provided. To avoid creating multiple datastores with the same blob container and reuse the existing one, replace the random string with the name of existing datastore when adding a new datastore with **Manage Datastore** button.
+* **Path:** Path of the IO on the datastore (blob container).
+* **Mode:** The mode of the IO.
+  * **Read Only Mount:** Mount the IO to the node in read-only mode. 
+  * **Read Write Mount:** Mount the IO to the node in read-write mode.
+  * **Download:** Download the IO to the node before running the job.
+  * **Upload:** Upload the IO to the datastore after the job finishes.
 
 **Environment**
 
-* **Docker Image:** Image name of the environment. Now only curated images are supported. See [Singularity container images - Singularity](https://singularitydocs.azurewebsites.net/docs/container_images/).
-* **Setup Script:** Script to be run before the experiment. This script will be run under the working directory. So, usage of `requirements.txt` is recommended.
+* **Image:** Image name of the environment. Now only curated images are supported. See [Singularity container images - Singularity](https://singularitydocs.azurewebsites.net/docs/container_images/).
+
+**Synchorization**
+
+* **Target:** The target IO to sync the local working directory to. The target IO should be added in the **IO** zone before using it here.
+* **Ignore Dir:** Directories to be ignored when syncing. Use ';' to seperate multiple directories.
 
 **Experiment**
 
 * **Name:** Arbitrary name for your experiment.
 * **Job Name:** Arbitrary name for your job. This will be shown in the job list.
-* **Work Dir:** Working directory related to the root of yout blob container (container name is excluded).
-* **Copy Data:** Whether to copy the dataset from blob container to the node before running the experiment. Note that although the specified working directory on the blob container will be mounted to the node, directly reading it with file system may be extremely slow. So, I recommend to do data transfer beforehand using `azcopy` which is specially designed for high speed massive data transfer from Azure Storage.
-* **Sync Code:** Whether to sync the code from working directory to blob container before running the experiment. You can also only sync the code without submitting the job by pressing **Synchorize** button.
-* **Data Dir:** Shows if **Copy Data** is checked. Data directory related to the root of yout blob container (container name is excluded).
-* **Data Subdur:** Shows if **Copy Data** is checked. Subdirectories of data directory to be copied. Use ';' to seperate multiple subdirectories.
-* **Ignore Dir:** Shows if **Sync Code** is checked. Directories to be ignored when syncing. Use ';' to seperate multiple directories.
-* **Scipt:** Script to run the experiment.
+* **Scipt:** Script to run. The script will be uploaded to cluster and run. You can use `${{io_name}}` to refer to the IOs and `${{arg_name}}` to refer to the arguments in the **Arg Sweep**.
 * 
     **Arg Sweep:** Arguments to sweep.
     
@@ -95,7 +101,16 @@ Storage zone sets the working directory where your script will run. It must be s
     If you are dealing with continuous integer arguments, you can use `start-end` to represent a range. For example, `id: 0, 2-4` is equivalent to `id: 0, 2, 3, 4`. 
     
     To avoid parsing if your argument value contains aforementioned separator, use `'` or `"` to wrap the value. For example, `arg: 'value1,value2'` or `arg: "value1,value2"`.
-    
+
+
+### Privileged Identity Management (PIM)
+
+For security reasons, you may need to use a privileged identity to access some resources. This tool provides a way to request a privileged identity and keep it alive automatically.
+
+* Press **Refresh** button in the top right corner to refresh the list of roles.
+* Press **Activate** button to activate a role.
+* Press **Deactivate** button to deactivate a role.
+* To keep the identity alive, check the **Watch** icon on the right of the role. The tool will automatically reactivate the role when it expires.
   
 ### GCR Tunnel
 
@@ -119,7 +134,7 @@ Host tunnel
 
 **Azure CLI not installed.**
 
-* Install Azure CLI with version higher than 2.58. See [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
+* Install Azure CLI with latest version. See [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 
 **Command timeout.**
 
@@ -127,49 +142,19 @@ Host tunnel
 
 ### Submit Jobs
 
-**Conda spawning failed.**
+**Azure ML extension not installed.**
 
-* Have you installed a conda environment?
-
-**Conda environment not found.**
-
-* This extension uses a conda env `msra-intern-s-toolkit` with required packs to submit the job. This can be addressed with any of the following two actions:
-* * Click **Yes** when a message advices you to setup conda env (at start or after the error message).
-* * Run the following command:
-
-```
-conda create -n msra-intern-s-toolkit python=3.10
-conda activate msra-intern-s-toolkit
-pip install azure-ai-ml azure-identity
-```
-
-**Azcopy not found.**
-
-* Have you installed azcopy? See [Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Learn](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10).
+* Install the Azure CLI Machine Learning extension: `az extension add --name ml`.
 
 **Permission denied.**
 
 * Make sure you have the permission to access the working directory.
 
-**SAS authentication failed.**
-
-* Your SAS token may be expired or not have the proper permission (e.g., read / write) to the blob container.
-
 ### GCR Tunnel
 
-**Powershell spawning failed.**
+**Azure Bastion extension not installed.**
 
-* Probably caused by the absense of powershell. This extention uses `pwsh.exe` and is tested with powershell7. See [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
-
-**Powershell script forbidden.**
-
-* Caused by powershell `SecurityError`.
-* This means the script running is forbidden due to strict security setting.
-* Run `Set-ExecutionPolicy RemoteSigned` with admin powershell and select yes to solve this.
-
-**Keypath not found.**
-
-* Means `.ssh\id_ed25519` file in the user dir is missing. Have you generated and submitted your ssh key? Following [Generating a Key and Uploading it to GCR](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management).
+* Install the Azure CLI Bastion extension: `az extension add --name bastion`.
 
 **SSH tunnel failed.**
 
@@ -178,9 +163,7 @@ pip install azure-ai-ml azure-identity
 ## For more information
 
 * [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
-* [Installing PowerShell on Windows | Microsoft Learn](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
 * [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui)
-* [Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Learn](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10)
 * [GCR Bastion - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/6627/GCR-Bastion)
 * [SSH Key Management - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4099/SSH-Key-Management)
 * [Singularity Overview - Overview](https://dev.azure.com/msresearch/GCR/_wiki/wikis/GCR.wiki/4712/Singularity-Overview)
