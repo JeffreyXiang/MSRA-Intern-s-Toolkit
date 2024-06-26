@@ -377,7 +377,7 @@ async function newDatastore() {
             (async (progress) => {
                 progress.report({message: "Fetching subscriptions..."});
                 try {
-                    return await azure.account.getSubscriptions();
+                    return await azure.account.getSubscriptions(true);
                 } catch (err) {
                     showErrorMessageWithHelp('Failed to get subscriptions.');
                 }
@@ -490,6 +490,12 @@ export async function synchronize(jobcfg?: JobConfig) {
         {location: vscode.ProgressLocation.Notification, cancellable: false},
         (async (progress) => {
             progress.report({message: "Synchronizing code...", increment: 0});
+            try {
+                await azure.account.getSubscriptions(true);
+            } catch (err) {
+                showErrorMessageWithHelp('Failed to synchronize code. Failed to get subscriptions.');
+                throw 'failed_to_get_subscriptions';
+            }
             try {
                 await azure.storage.upload(
                     workspacePath('../*'),
@@ -634,23 +640,52 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
 export async function submit() {
     let cfg: JobConfig = deepCopy(config);
     let argSweep = cfg.experiment.arg_sweep.filter((v) => v.trim() != '').join('\n').trim();
-    if (argSweep.length == 0) {
-        return await vscode.window.withProgress(
-            {location: vscode.ProgressLocation.Notification, cancellable: false}, 
-            (async (progress) => {
+    return await vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, cancellable: false}, 
+        (async (progress) => {
+            progress.report({message: "Submitting the job...", increment: 0});
+            
+            // Update subscriptions
+            try {
+                await azure.account.getSubscriptions(true);
+            } catch (err) {
+                showErrorMessageWithHelp('Failed to synchronize code. Failed to get subscriptions.');
+                throw 'failed_to_get_subscriptions';
+            }
+
+            // Check virtual cluster, workspace, image, and datastores
+            if (resource.virtualClusters.find((v) => v.name == cfg.cluster.virtual_cluster) === undefined) {
+                showErrorMessageWithHelp(`Failed to submit the job. Virtual cluster ${cfg.cluster.virtual_cluster} not found.`);
+                throw 'failed_to_find_virtual_cluster';
+            }
+            if (resource.workspaces.find((v) => v.name == cfg.cluster.workspace) === undefined) {
+                showErrorMessageWithHelp(`Failed to submit the job. Workspace ${cfg.cluster.workspace} not found.`);
+                throw 'failed_to_find_workspace';
+            }
+            if (resource.images.find((v) => v.name == cfg.environment.image) === undefined) {
+                showErrorMessageWithHelp(`Failed to submit the job. Image ${cfg.environment.image} not found.`);
+                throw 'failed_to_find_image';
+            }
+            for (let io of cfg.io) {
+                if (resource.datastores.find((v) => v.name == io.datastore) === undefined) {
+                    showErrorMessageWithHelp(`Failed to submit the job. Datastore ${io.datastore} not found.`);
+                    throw 'failed_to_find_datastore';
+                }
+            }
+
+            if (argSweep.length == 0) {
                 progress.report({message: "Submitting the job...", increment: 0});
-                try {await submitToAML(cfg, (increment) => progress.report({increment: increment}));}
-                catch (err) {throw 'failed';}
+                try {
+                    await submitToAML(cfg, (increment) => progress.report({increment: increment}));
+                }
+                catch (err) {
+                    throw 'failed';
+                }
                 return 'success';
-            })
-        );
-    }
-    else {
-        let argSweepParsed = ArgSweepParser.parse(argSweep);
-        if (argSweepParsed.length == 0) throw 'failed';
-        return await vscode.window.withProgress(
-            {location: vscode.ProgressLocation.Notification, cancellable: false}, 
-            (async (progress) => {
+            }
+            else {
+                let argSweepParsed = ArgSweepParser.parse(argSweep);
+                if (argSweepParsed.length == 0) throw 'failed';
                 let increment = 100 / (argSweepParsed.length + 1);
                 progress.report({message: `(0/${argSweepParsed.length}) Submitting sweep jobs...`, increment: increment});
 
@@ -672,9 +707,9 @@ export async function submit() {
 
                 saveWorkspaceFile(`./userdata/jobs_history/${cfg.experiment.name}_${new Date().getTime()}_sweep.json`, JSON.stringify(cfg, null, 4));
                 return 'success';
-            })
-        );
-    }
+            }
+        })
+    );
 }
 
 export function updateConfig(group: string, label: string, value: any) {

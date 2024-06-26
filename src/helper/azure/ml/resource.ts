@@ -177,6 +177,11 @@ export async function getVirtualClusters() {
         virtualClusters.push(newVC);
     }
 
+    if (virtualClusters.length == 0) {
+        console.log('msra_intern_s_toolkit.helper.azureml.getVirtualClusters: No virtual clusters found');
+        return [];
+    }
+
     // Get instance types
     let requests = [];
     for (let vc of virtualClusters) {

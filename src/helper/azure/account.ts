@@ -33,10 +33,11 @@ export async function getAccessToken(): Promise<string> {
     });
 }
 
-export async function getSubscriptions(): Promise<Subscription[]> {
-    outputChannel.appendLine('[CMD] > az account list');
+export async function getSubscriptions(refresh: boolean = false): Promise<Subscription[]> {
+    let cmd = 'az account list' + (refresh ? ' --refresh' : '');
+    outputChannel.appendLine(`[CMD] > ${cmd}`);
     return new Promise((resolve, reject) => {
-        cp.exec('az account list', {}, (error, stdout, stderr) => {
+        cp.exec(cmd, {}, (error, stdout, stderr) => {
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let subscriptions: Subscription[] = [];

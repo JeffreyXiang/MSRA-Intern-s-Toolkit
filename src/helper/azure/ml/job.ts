@@ -136,6 +136,7 @@ export function buildSingulaitySpec(
 }
 
 export async function create(Workspace: Workspace, specFile: string): Promise<any> {
+    if (!specFile.startsWith('\"') && !specFile.endsWith('\"')) specFile = `"${specFile}"`;
     outputChannel.appendLine(`[CMD] > az ml job create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`);
     return new Promise((resolve, reject) => {
         cp.exec(`az ml job create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`, {}, (error, stdout, stderr) => {

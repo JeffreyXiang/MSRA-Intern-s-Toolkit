@@ -51,6 +51,7 @@ export async function buildBlobContainerSpec(datastore: Datastore) {
 }
 
 export async function create(Workspace: Workspace, specFile: string): Promise<any> {
+    if (!specFile.startsWith('\"') && !specFile.endsWith('\"')) specFile = `"${specFile}"`;
     outputChannel.appendLine(`[CMD] > az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`);
     return new Promise((resolve, reject) => {
         cp.exec(`az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`, {}, (error, stdout, stderr) => {
