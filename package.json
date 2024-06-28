@@ -3,7 +3,7 @@
 	"displayName": "MSRA Intern's Toolkit",
 	"description": "",
 	"icon": "color-icon.png",
-	"version": "2.0.1",
+	"version": "2.1.0-nightly.20240628",
 	"publisher": "jianfeng-xiang",
 	"author": {
 		"name": "Jianfeng Xiang",
@@ -28,8 +28,8 @@
 				"title": "MSRA Intern's Toolkit: Start"
 			},
 			{
-				"command": "msra_intern_s_toolkit.azureAccount",
-				"title": "MSRA Intern's Toolkit: Azure Account"
+				"command": "msra_intern_s_toolkit.manageProfiles",
+				"title": "MSRA Intern's Toolkit: Manage Profiles"
 			},
 			{
 				"command": "msra_intern_s_toolkit.addGCRTunnel",
@@ -51,6 +51,21 @@
 				"command": "msra_intern_s_toolkit.refreshPIMRoles",
 				"title": "Refresh PIM Roles",
 				"icon": "$(refresh)"
+			},
+			{
+				"command": "msra_intern_s_toolkit.setGCRTunnelProfile",
+				"title": "Set GCR Tunnel Profile",
+				"icon": "$(account)"
+			},
+			{
+				"command": "msra_intern_s_toolkit.setPIMProfile",
+				"title": "Set PIM Profile",
+				"icon": "$(account)"
+			},
+			{
+				"command": "msra_intern_s_toolkit.setSubmitJobsProfile",
+				"title": "Set Submit Jobs Profile",
+				"icon": "$(account)"
 			}
 		],
 		"configuration": {
@@ -114,12 +129,39 @@
 				{
 					"command": "msra_intern_s_toolkit.refreshPIMRoles",
 					"when": "false"
+				},
+				{
+					"command": "msra_intern_s_toolkit.setGCRTunnelProfile",
+					"when": "false"
+				},
+				{
+					"command": "msra_intern_s_toolkit.setPIMProfile",
+					"when": "false"
+				},
+				{
+					"command": "msra_intern_s_toolkit.setSubmitJobsProfile",
+					"when": "false"
 				}
 			],
 			"view/title": [
 				{
 					"command": "msra_intern_s_toolkit.refreshPIMRoles",
 					"when": "view == msra_intern_s_toolkit_view_PIM",
+					"group": "navigation"
+				},
+				{
+					"command": "msra_intern_s_toolkit.setGCRTunnelProfile",
+					"when": "view == msra_intern_s_toolkit_view_GCRTunnel",
+					"group": "navigation"
+				},
+				{
+					"command": "msra_intern_s_toolkit.setPIMProfile",
+					"when": "view == msra_intern_s_toolkit_view_PIM",
+					"group": "navigation"
+				},
+				{
+					"command": "msra_intern_s_toolkit.setSubmitJobsProfile",
+					"when": "view == msra_intern_s_toolkit_view_submitJobs",
 					"group": "navigation"
 				}
 			]

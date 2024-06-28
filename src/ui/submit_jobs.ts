@@ -88,6 +88,7 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
             }
             let message = {command: 'setContent', params: msg_params};
             this.view.webview.postMessage(message);
+            this.view.title = 'Submit Jobs' + (params.activeProfile ? ` (${params.activeProfile.name})` : '');
         }
     }
 

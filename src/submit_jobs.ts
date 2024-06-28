@@ -3,7 +3,7 @@ import * as parsec from 'typescript-parsec'
 import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp, deepCopy, randomString} from './utils'
 import {workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles, exists, saveFile, getFile} from './helper/file_utils'
-import * as account from './account'
+import * as profile from './profile'
 import * as azure from './helper/azure'
 
 class ClusterConfig {
@@ -128,6 +128,7 @@ var resource: Resource = new Resource();
 
 import {SubmitJobsView} from './ui/submit_jobs'
 export var ui: SubmitJobsView;
+export var activeProfile: profile.Profile | undefined = undefined;
 
 
 // Arg Sweep Parsing
@@ -311,7 +312,11 @@ async function getComputeResources() {
             progress.report({message: "Fetching compute resources info..."});
             let res;
             try {
-                res = await Promise.all([azure.ml.getWorkspaces(), azure.ml.getVirtualClusters(), azure.ml.getImages()]);
+                res = await Promise.all([
+                    azure.ml.getWorkspaces(activeProfile!.azureConfigDir),
+                    azure.ml.getVirtualClusters(activeProfile!.azureConfigDir),
+                    azure.ml.getImages(activeProfile!.azureConfigDir)
+                ]);
             } catch (err) {
                 showErrorMessageWithHelp('Failed to get compute resources.');
                 throw 'failed_to_get_compute_resources';
@@ -377,7 +382,7 @@ async function newDatastore() {
             (async (progress) => {
                 progress.report({message: "Fetching subscriptions..."});
                 try {
-                    return await azure.account.getSubscriptions(true);
+                    return await azure.account.getSubscriptions(true, activeProfile!.azureConfigDir);
                 } catch (err) {
                     showErrorMessageWithHelp('Failed to get subscriptions.');
                 }
@@ -393,7 +398,7 @@ async function newDatastore() {
             (async (progress) => {
                 progress.report({message: "Fetching storage accounts..."});
                 try {
-                    return await azure.storage.getAccounts(subscription.id);
+                    return await azure.storage.getAccounts(subscription.id, activeProfile!.azureConfigDir);
                 } catch (err) {
                     showErrorMessageWithHelp('Failed to get storage accounts.');
                 }
@@ -491,7 +496,7 @@ export async function synchronize(jobcfg?: JobConfig) {
         (async (progress) => {
             progress.report({message: "Synchronizing code...", increment: 0});
             try {
-                await azure.account.getSubscriptions(true);
+                await azure.account.getSubscriptions(true, activeProfile!.azureConfigDir);
             } catch (err) {
                 showErrorMessageWithHelp('Failed to synchronize code. Failed to get subscriptions.');
                 throw 'failed_to_get_subscriptions';
@@ -505,7 +510,8 @@ export async function synchronize(jobcfg?: JobConfig) {
                         recursive: true,
                         excludePath: `.msra_intern_s_toolkit;.git;${cfg.synchronization.ignore_dir}`,
                     },
-                    (increment) => progress.report({increment: increment})
+                    (increment) => progress.report({increment: increment}),
+                    activeProfile!.azureConfigDir,
                 )
             } catch (err) {
                 if (err == 'permission_denied') showErrorMessageWithHelp('Failed to synchronize code. Permission denied.');
@@ -598,7 +604,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     }
 
     // Create datastores
-    let datastoreCreatePromises = await Promise.allSettled(datastorePaths.map((v) => azure.ml.datastore.create(workspace!, workspacePath(v))));
+    let datastoreCreatePromises = await Promise.allSettled(datastorePaths.map((v) => azure.ml.datastore.create(workspace!, workspacePath(v), activeProfile!.azureConfigDir)));
     errorMsgs = [];
     for (let i = 0; i < datastoreCreatePromises.length; i++) {
         if (datastoreCreatePromises[i].status == 'rejected') {
@@ -618,7 +624,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     // Create the job
     let jobInfo: any;
     try {
-        jobInfo = await azure.ml.job.create(workspace, workspacePath(jobPath));
+        jobInfo = await azure.ml.job.create(workspace, workspacePath(jobPath), activeProfile!.azureConfigDir);
     } catch (err) {
         if (err == 'azure_ml_ext_not_installed') {
             showErrorMessageWithHelp(`Failed to submit the job. Azure ML extension not installed.`);
@@ -647,7 +653,7 @@ export async function submit() {
             
             // Update subscriptions
             try {
-                await azure.account.getSubscriptions(true);
+                await azure.account.getSubscriptions(true, activeProfile!.azureConfigDir);
             } catch (err) {
                 showErrorMessageWithHelp('Failed to synchronize code. Failed to get subscriptions.');
                 throw 'failed_to_get_subscriptions';
@@ -729,12 +735,14 @@ function loadConfig(path: string) {
 }
 
 function saveResourceCache() {
-    let cachePath = `./userdata/${account.alias}/resource_cache.json`;
+    if (activeProfile === undefined) return;
+    let cachePath = `${activeProfile.userDataPath}/resource_cache.json`;
     saveFile(cachePath, JSON.stringify(resource, null, 4));
 }
 
 function loadResourceCache() {
-    let cachePath = `./userdata/${account.alias}/resource_cache.json`;
+    if (activeProfile === undefined) return;
+    let cachePath = `${activeProfile.userDataPath}/resource_cache.json`;
     if (exists(cachePath)) {
         resource = new Resource(JSON.parse(getFile(cachePath)));
     }
@@ -810,15 +818,16 @@ export function refreshComputeResources() {
     getComputeResources().then(() => refreshUI({resource: resource}));
 }
 
-export class uiParams {
+export interface uiParams {
     config?: JobConfig;
     resource?: {workspaces: azure.ml.Workspace[], virtualClusters: azure.ml.VirtualCluster[]};
+    activeProfile?: profile.Profile | undefined;
 }
 
 
 export function refreshUI(params?: uiParams) {
     console.log(params);
-    if (params == undefined) params = {config: config, resource: resource};
+    if (params == undefined) params = {config: config, resource: resource, activeProfile: activeProfile};
     if (ui != undefined) {
         if (!vscode.workspace.workspaceFolders) ui.noWorkspace();
         else ui.setContent(params);
@@ -826,16 +835,18 @@ export function refreshUI(params?: uiParams) {
 }
 
 export function loggedOut() {
+    activeProfile = undefined;
     resource = new Resource();
-    ui.setContent({resource: undefined});
+    ui.setContent({resource: undefined, activeProfile: undefined});
 }
 
-export async function loggedIn() {
+export async function loggedIn(profile: profile.Profile) {
+    activeProfile = profile;
     loadResourceCache();
     if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0) {
         await getComputeResources();
     }
-    refreshUI({resource: resource});
+    ui.setContent({resource: resource, activeProfile: activeProfile});
 }
 
 export function init() {

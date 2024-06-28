@@ -128,11 +128,13 @@ export class Datastore {
     }
 }
 
-export async function getWorkspaces() {
+export async function getWorkspaces(configDir?: string) {
     let response = await rest.request(
         rest.RESTMethod.POST,
         '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
-        {query: "resources | where type == 'microsoft.machinelearningservices/workspaces' | order by tolower(name) asc",}
+        {query: "resources | where type == 'microsoft.machinelearningservices/workspaces' | order by tolower(name) asc",},
+        undefined,
+        configDir,
     );
     let workspaces: Workspace[] = [];
     for (let ws of response.data) {
@@ -144,12 +146,14 @@ export async function getWorkspaces() {
     return workspaces;
 }
 
-export async function getVirtualClusters() {
+export async function getVirtualClusters(configDir?: string) {
     // Get virtual clusters
     let response = await rest.request(
         rest.RESTMethod.POST,
         '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
-        {query: "resources | where type == 'microsoft.machinelearningservices/virtualclusters' | order by tolower(name) asc",}
+        {query: "resources | where type == 'microsoft.machinelearningservices/virtualclusters' | order by tolower(name) asc",},
+        undefined,
+        configDir,
     );
     let virtualClusters: VirtualCluster[] = [];
     for (let vc of response.data) {
@@ -209,10 +213,13 @@ export async function getVirtualClusters() {
     return virtualClusters;
 }
 
-export async function getImages(InstanceTypeName: string = 'ND5_v2g1') {
+export async function getImages(InstanceTypeName: string = 'ND5_v2g1', configDir?: string) {
     let response = await rest.request(
         rest.RESTMethod.GET,
-        `https://ml.azure.com/api/westus2/virtualcluster/rp/subscriptions/22da88f6-1210-4de2-a5a3-da4c7c2a1213/managedComputeImages?api-version=2021-03-01-preview&instanceType=Singularity.${InstanceTypeName}`
+        `https://ml.azure.com/api/westus2/virtualcluster/rp/subscriptions/22da88f6-1210-4de2-a5a3-da4c7c2a1213/managedComputeImages?api-version=2021-03-01-preview&instanceType=Singularity.${InstanceTypeName}`,
+        undefined,
+        undefined,
+        configDir,
     );
     let images: Image[] = [];
     for (let key of Object.keys(response)) {

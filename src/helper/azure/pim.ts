@@ -32,7 +32,7 @@ export class Role {
     }
 }
 
-export async function getRoles() {
+export async function getRoles(configDir?: string) {
     let requests = [
         {
             httpMethod: rest.RESTMethod.GET,
@@ -42,7 +42,7 @@ export async function getRoles() {
             relativeUrl: `/providers/Microsoft.Authorization/roleAssignmentScheduleInstances?api-version=2020-10-01&$filter=asTarget()`
         }
     ];
-    let responses = await rest.batchRequest(requests);
+    let responses = await rest.batchRequest(requests, configDir);
     let roles: Role[] = [];
     for (let response of responses[0].content.value) {
         let newRole = new Role(
@@ -68,10 +68,13 @@ export async function getRoles() {
     return roles;
 }
 
-export async function getRoleAssignment(role: Role) {
+export async function getRoleAssignment(role: Role, configDir?: string) {
     let response = await rest.request(
         rest.RESTMethod.GET,
-        `${role.scope}/providers/Microsoft.Authorization/roleAssignmentScheduleInstances?api-version=2020-10-01&$filter=asTarget()`
+        `${role.scope}/providers/Microsoft.Authorization/roleAssignmentScheduleInstances?api-version=2020-10-01&$filter=asTarget()`,
+        undefined,
+        undefined,
+        configDir
     );
     let roleAssignment = response.value.find((roleAssignment: any) => roleAssignment.properties.linkedRoleEligibilityScheduleInstanceId === role.id);
     if (!roleAssignment) {
@@ -80,13 +83,16 @@ export async function getRoleAssignment(role: Role) {
     return roleAssignment;
 }
 
-export async function activateRole(role: Role) {
+export async function activateRole(role: Role, configDir?: string) {
     let info = await Promise.all([
-        ad.getSignedInUser(),
+        ad.getSignedInUser(configDir),
         rest.request(
             rest.RESTMethod.GET,
             `${role.scope}/providers/Microsoft.Authorization/roleManagementPolicyAssignments?api-version=2020-10-01` +
-            `&$filter=roleDefinitionId eq '${role.roleDefinitionId}'`
+            `&$filter=roleDefinitionId eq '${role.roleDefinitionId}'`,
+            undefined,
+            undefined,
+            configDir
         )
     ]);
     let userId = info[0].id;
@@ -114,12 +120,13 @@ export async function activateRole(role: Role) {
             }
         }, {
             'Content-Type': 'application/json'
-        }
+        },
+        configDir,
     );
 }
 
-export async function deactivateRole(role: Role) {
-    let info = await ad.getSignedInUser();
+export async function deactivateRole(role: Role, configDir?: string) {
+    let info = await ad.getSignedInUser(configDir);
     let userId = info.id;
 
     return await rest.request(
@@ -135,6 +142,7 @@ export async function deactivateRole(role: Role) {
             }
         }, {
             'Content-Type': 'application/json'
-        }
+        },
+        configDir,
     );
 }

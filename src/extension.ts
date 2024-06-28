@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as account from './account';
+import * as profile from './profile';
 import * as job from './submit_jobs';
 import * as gcr from './gcr_tunnel';
 import * as pim from './pim';
@@ -21,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.start', () => {
 		vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isStarted', true);
-		account.init();
+		profile.init();
 		job.init();
 		gcr.init();
 		pim.init();

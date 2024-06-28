@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process'
 import * as process from 'process'
 import {vscodeContext, outputChannel} from './extension'
-import * as account from './account';
+import * as profile from './profile';
 import {showErrorMessageWithHelp} from './utils'
 import {getFile, saveFile, exists} from './helper/file_utils'
 import {pidIsRunning, findNetProcessWin, findNetProcessMac, NetProtocol, NetState} from './helper/proc_utils'
@@ -46,6 +46,7 @@ export class Tunnel {
 var tunnels: Array<Tunnel> = [];
 
 var ui: GCRTunnelView | undefined = undefined;
+export var activeProfile: profile.Profile | undefined = undefined;
 
 export async function addTunnel() {
     // input sandbox ID
@@ -238,17 +239,22 @@ async function openBastionTunnel(i: number) {
 }
 
 function openSSHTunnel(i: number) {
+    if (activeProfile == undefined) {
+        showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. No active profile.`);
+        tunnels[i].state = 'ssh_opening_failed';
+        update(i);
+        return;
+    }
     tunnels[i].state = 'ssh_opening';
     update(i);
     let ignoreHostFile = process.platform == 'win32' ? '\\\\.\\NUL' : '/dev/null';
-    console.log(`msra_intern_s_toolkit.openTunnel: Exec ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${account.domain}.${account.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
-    outputChannel.appendLine(`[CMD] > ssh -N -L ${tunnels[i].sshPort}:127.0.0.1:22 ${`${account.domain}.${account.alias}`}@127.0.0.1 -p ${tunnels[i].port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${ignoreHostFile}`);
-    let proc = cp.spawn('ssh', ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${`${account.domain}.${account.alias}`}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', `UserKnownHostsFile=${ignoreHostFile}`], {detached: true, stdio: 'ignore'});
+    let args = ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${activeProfile.domain}.${activeProfile.alias}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', `UserKnownHostsFile=${ignoreHostFile}`]
+    outputChannel.appendLine(`[CMD] > ssh ${args.join(' ')}`);
+    let proc = cp.spawn('ssh', args, {detached: true, stdio: 'ignore'});
     proc.unref();
     proc.on('exit', (code) => {
         if (tunnels[i].state == 'ssh_opening') {
             showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. SSH tunnel failed.`);
-            // console.log(`msra_intern_s_toolkit.openTunnel: Process exited with ${code}`);
             tunnels[i].state = 'ssh_opening_failed'
             process.kill(tunnels[i].procID!);
             update(i);
@@ -425,12 +431,14 @@ function update(i: number) {
 }
 
 function saveGCRTunnelCache() {
-    let cachePath = `./userdata/${account.alias}/gcr_tunnel.json`;
+    if (activeProfile == undefined) return;
+    let cachePath = `${activeProfile.userDataPath}/gcr_tunnel.json`;
     saveFile(cachePath, JSON.stringify(tunnels.map((v) => v.getSetting()), null, 4));
 }
 
 function loadGCRTunnelCache() {
-    let cachePath = `./userdata/${account.alias}/gcr_tunnel.json`;
+    if (activeProfile == undefined) return;
+    let cachePath = `${activeProfile.userDataPath}/gcr_tunnel.json`;
     if (exists(cachePath)) {
         let cache = JSON.parse(getFile(cachePath));
         tunnels = cache.map((v: TunnelSetting) => new Tunnel(v));
@@ -438,11 +446,13 @@ function loadGCRTunnelCache() {
 }
 
 export function loggedOut() {
+    activeProfile = undefined;
     tunnels = [];
     refreshUI();
 }
 
-export async function loggedIn() {
+export async function loggedIn(profile: profile.Profile) {
+    activeProfile = profile;
     loadGCRTunnelCache();
     refreshUI();
 }
@@ -473,15 +483,20 @@ export function init() {
 
     if (isSupported) {
         setInterval(() => {
-            if (account.isLoggedIn) polling();
+            if (activeProfile != undefined && activeProfile.isLoggedIn) polling();
         }, 1000);
     }
+}
+
+export interface uiParams {
+    activeProfile: profile.Profile | undefined;
+    tunnels: Array<Tunnel>;
 }
 
 export function refreshUI() {
     if (ui != undefined) {
         let isSupported = supportedOS.includes(process.platform);
-        if (isSupported) ui.setContent(tunnels);
+        if (isSupported) ui.setContent({activeProfile: activeProfile, tunnels: tunnels});
         else ui.unsupported();
     }
 }

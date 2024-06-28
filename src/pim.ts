@@ -3,11 +3,12 @@ import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp, mapToObj, objToMap} from './utils'
 import {getFile, saveFile, exists} from './helper/file_utils'
 import * as azure from './helper/azure'
-import * as account from './account'
+import * as profile from './profile'
 import { PIMView } from './ui/pim';
 import exp = require('constants');
 
 export var ui: PIMView;
+export var activeProfile: profile.Profile | undefined = undefined;
 
 var roles: azure.pim.Role[];
 var autoActivationEnabled: Map<string, boolean> = new Map();
@@ -17,7 +18,7 @@ function addPlanedTask(role: azure.pim.Role, planedTime: Date) {
     planedTasks.set(role.name, setTimeout(async () => {
         let response: any;
         try {
-            response = await azure.pim.getRoleAssignment(role);
+            response = await azure.pim.getRoleAssignment(role, activeProfile!.azureConfigDir);
         } catch (error) {
             if (error === 'role_assignment_not_found') {
                 if (autoActivationEnabled.get(role.name)) {
@@ -41,13 +42,14 @@ function addPlanedTask(role: azure.pim.Role, planedTime: Date) {
     console.log(planedTasks);
 }
 
-export class uiParams {
-    roles?: azure.pim.Role[];
-    autoActivationEnabled?: Map<string, boolean>;
+export interface uiParams {
+    roles: azure.pim.Role[];
+    autoActivationEnabled: Map<string, boolean>;
+    activeProfile: profile.Profile | undefined;
 }
 
 export async function refreshUI() {
-    ui.setContent({roles: roles, autoActivationEnabled: mapToObj(autoActivationEnabled)});
+    ui.setContent({roles: roles, autoActivationEnabled: mapToObj(autoActivationEnabled), activeProfile: activeProfile});
 }
 
 export async function activate(name: string) {
@@ -60,7 +62,7 @@ export async function activate(name: string) {
     }, async () => {
         let response: any;
         try {
-            await azure.pim.activateRole(role);
+            await azure.pim.activateRole(role, activeProfile!.azureConfigDir);
         } catch (error) {
             showErrorMessageWithHelp(`Failed to activate role: ${error}`);
             ui.update(role.name, 'deactivated');
@@ -70,7 +72,7 @@ export async function activate(name: string) {
         while (true) {
             try {
                 await new Promise(resolve => setTimeout(resolve, 5000));
-                response = await azure.pim.getRoleAssignment(role);
+                response = await azure.pim.getRoleAssignment(role, activeProfile!.azureConfigDir);
                 if (response.properties.assignmentType === 'Activated') break;
             } catch (error) {}
         }
@@ -93,7 +95,7 @@ export async function deactivate(name: string) {
         cancellable: false
     }, async () => {
         try {
-            await azure.pim.deactivateRole(role);
+            await azure.pim.deactivateRole(role, activeProfile!.azureConfigDir);
         } catch (error) {
             showErrorMessageWithHelp(`Failed to deactivate role: ${error}`);
             ui.update(role.name, 'activated');
@@ -127,12 +129,14 @@ export async function disableAutoActivation(name: string) {
 }
 
 function savePIMCache() {
-    let cachePath = `./userdata/${account.alias}/pim.json`;
+    if (activeProfile === undefined) return;
+    let cachePath = `${activeProfile.userDataPath}/pim.json`;
     saveFile(cachePath, JSON.stringify({autoActivationEnabled: mapToObj(autoActivationEnabled)}, null, 4));
 }
 
 function loadPIMCache() {
-    let cachePath = `./userdata/${account.alias}/pim.json`;
+    if (activeProfile === undefined) return;
+    let cachePath = `${activeProfile.userDataPath}/pim.json`;
     if (exists(cachePath)) {
         let cache = JSON.parse(getFile(cachePath));
         autoActivationEnabled = objToMap(cache.autoActivationEnabled);
@@ -140,6 +144,7 @@ function loadPIMCache() {
 }
 
 export function loggedOut() {
+    activeProfile = undefined;
     roles = [];
     autoActivationEnabled = new Map();
     planedTasks.forEach(clearTimeout);
@@ -147,7 +152,8 @@ export function loggedOut() {
     refreshUI();
 }
 
-export async function loggedIn() {
+export async function loggedIn(profile: profile.Profile) {
+    activeProfile = profile
     loadPIMCache();
     refreshUI();
 }
@@ -163,7 +169,7 @@ export function init() {
         }, async () => {
             planedTasks.forEach(clearTimeout);
             planedTasks.clear();
-            roles = await azure.pim.getRoles();
+            roles = await azure.pim.getRoles(activeProfile!.azureConfigDir);
             let copy = new Map(Array.from(autoActivationEnabled));
             autoActivationEnabled.clear();
             for (let role of roles) {

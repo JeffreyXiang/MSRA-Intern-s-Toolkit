@@ -1,10 +1,14 @@
 import * as cp from 'child_process'
 import {outputChannel} from '../../extension'
 
-export async function getSignedInUser(): Promise<any> {
+export async function getSignedInUser(configDir?: string): Promise<any> {
     outputChannel.appendLine('[CMD] > az ad signed-in-user show');
+    let env = process.env;
+    if (configDir) {
+        env['AZURE_CONFIG_DIR'] = configDir;
+    }
     return new Promise((resolve, reject) => {
-        cp.exec('az ad signed-in-user show', {}, (error, stdout, stderr) => {
+        cp.exec('az ad signed-in-user show', {env: env}, (error, stdout, stderr) => {
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 resolve(JSON.parse(stdout));

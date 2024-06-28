@@ -34,14 +34,13 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
                     break;
             }
         });
-        // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Webview resolved');
     }
 
-    public setContent(tunnels: gcr.Tunnel[]) {
+    public setContent(params: gcr.uiParams) {
         if (this.view) {
-            let message = {command: 'setContent', params: tunnels};
+            let message = {command: 'setContent', params: params.tunnels};
             this.view.webview.postMessage(message);
-            // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Send ' + JSON.stringify(message));
+            this.view.title = 'GCR Tunnel' + (params.activeProfile ? ` (${params.activeProfile.name})` : '');
         }
     }
 
@@ -56,7 +55,6 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
         if (this.view) {
             let message = {command: 'update', params: {idx: idx, tunnel: tunnel}};
             this.view.webview.postMessage(message);
-            // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Send ' + JSON.stringify(message));
         }
     }
 }

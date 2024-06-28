@@ -44,6 +44,7 @@ export class PIMView implements vscode.WebviewViewProvider {
         if (this.view) {
             let message = {command: 'setContent', params: params};
             this.view.webview.postMessage(message);
+            this.view.title = 'Privileged Identity Management' + (params.activeProfile ? ` (${params.activeProfile.name})` : '');
         }
     }
 

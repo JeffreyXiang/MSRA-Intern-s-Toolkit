@@ -50,11 +50,15 @@ export async function buildBlobContainerSpec(datastore: Datastore) {
     );
 }
 
-export async function create(Workspace: Workspace, specFile: string): Promise<any> {
+export async function create(Workspace: Workspace, specFile: string, configDir?: string): Promise<any> {
     if (!specFile.startsWith('\"') && !specFile.endsWith('\"')) specFile = `"${specFile}"`;
     outputChannel.appendLine(`[CMD] > az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`);
+    let env = process.env;
+    if (configDir) {
+        env['AZURE_CONFIG_DIR'] = configDir;
+    }
     return new Promise((resolve, reject) => {
-        cp.exec(`az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`, {}, (error, stdout, stderr) => {
+        cp.exec(`az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`, {env: env}, (error, stdout, stderr) => {
             if (stdout) {
                 outputChannel.appendLine(`[CMD OUT] ${stdout}`);
                 resolve(JSON.parse(stdout));

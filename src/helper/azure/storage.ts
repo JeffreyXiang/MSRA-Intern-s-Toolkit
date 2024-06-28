@@ -38,8 +38,8 @@ export class StorageAccount {
         return newAccount;
     }
 
-    getContainers(): Promise<BlobContainer[]> {
-        return getContainers(this);
+    getContainers(configDir?: string): Promise<BlobContainer[]> {
+        return getContainers(this, configDir);
     }
 }
 
@@ -65,17 +65,17 @@ export class BlobContainer {
         return newContainer;
     }
 
-    async generateSAS(durationDays: number = 7, permissions: string = 'acdlrw'): Promise<SharedAccessSignature> {
-        return await generateSAS(this, durationDays, permissions);
+    async generateSAS(durationDays: number = 7, permissions: string = 'acdlrw', configDir?: string): Promise<SharedAccessSignature> {
+        return await generateSAS(this, durationDays, permissions, configDir);
     }
 
-    async getSAS(renew_if_expired_within_days: number = 3): Promise<SharedAccessSignature> {
+    async getSAS(renew_if_expired_within_days: number = 3, configDir?: string): Promise<SharedAccessSignature> {
         let date = new Date();
         date.setDate(date.getDate() + renew_if_expired_within_days);
         if (this.sas && this.sas.expiry > date) {
             return this.sas;
         }
-        this.sas = await this.generateSAS();
+        this.sas = await this.generateSAS(7, 'acdlrw', configDir);
         return this.sas;
     }
 }
@@ -94,10 +94,14 @@ export class SharedAccessSignature {
     }
 }
 
-export async function getAccounts(subscriptionId: string): Promise<StorageAccount[]> {
+export async function getAccounts(subscriptionId: string, configDir?: string): Promise<StorageAccount[]> {
     outputChannel.appendLine(`[CMD] > az storage account list --subscription ${subscriptionId}`);
+    let env = process.env;
+    if (configDir) {
+        env['AZURE_CONFIG_DIR'] = configDir;
+    }
     return new Promise((resolve, reject) => {
-        cp.exec(`az storage account list --subscription ${subscriptionId}`, {}, (error, stdout, stderr) => {
+        cp.exec(`az storage account list --subscription ${subscriptionId}`, {env: env}, (error, stdout, stderr) => {
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let accounts: StorageAccount[] = [];
@@ -120,7 +124,7 @@ export async function getAccounts(subscriptionId: string): Promise<StorageAccoun
     });
 }
 
-export async function getContainers(account: StorageAccount): Promise<BlobContainer[]> {
+export async function getContainers(account: StorageAccount, configDir?: string): Promise<BlobContainer[]> {
     let cmd: string;
     if (account.key) {
         cmd = `az storage container list --account-name ${account.name} --account-key ${account.key} --auth-mode key`;
@@ -132,8 +136,12 @@ export async function getContainers(account: StorageAccount): Promise<BlobContai
         throw 'invalid_storage_account';
     }
     outputChannel.appendLine(`[CMD] > ${cmd}`);
+    let env = process.env;
+    if (configDir) {
+        env['AZURE_CONFIG_DIR'] = configDir;
+    }
     return new Promise((resolve, reject) => {
-        cp.exec(cmd, {}, (error, stdout, stderr) => {
+        cp.exec(cmd, {env: env}, (error, stdout, stderr) => {
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let containers: BlobContainer[] = [];
@@ -156,7 +164,7 @@ export async function getContainers(account: StorageAccount): Promise<BlobContai
     });
 }
 
-export async function generateSAS(container: BlobContainer, durationDays: number = 7, permissions: string = 'acdlrw'): Promise<SharedAccessSignature> {
+export async function generateSAS(container: BlobContainer, durationDays: number = 7, permissions: string = 'acdlrw', configDir?: string): Promise<SharedAccessSignature> {
     let expiry = new Date();
     expiry.setDate(expiry.getDate() + durationDays);
     let expiryStr = expiry.toISOString().split('.')[0] + 'Z';
@@ -171,8 +179,12 @@ export async function generateSAS(container: BlobContainer, durationDays: number
         throw 'invalid_storage_account';
     }
     outputChannel.appendLine(`[CMD] > ${cmd}`);
+    let env = process.env;
+    if (configDir) {
+        env['AZURE_CONFIG_DIR'] = configDir;
+    }
     return new Promise((resolve, reject) => {
-        cp.exec(cmd, {}, (error, stdout, stderr) => {
+        cp.exec(cmd, {env: env}, (error, stdout, stderr) => {
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 resolve(new SharedAccessSignature(stdout.trim().slice(1, -1), expiry));
@@ -191,7 +203,7 @@ export async function generateSAS(container: BlobContainer, durationDays: number
     });
 }
 
-export async function upload(localPath: string, remotePath: string, container: BlobContainer, kwargs?: {recursive?: boolean, excludePath?: string, excludePattern?: string, includePath?: string, includePattern?: string}, progress?: (increment: number) => void): Promise<void> {
+export async function upload(localPath: string, remotePath: string, container: BlobContainer, kwargs?: {recursive?: boolean, excludePath?: string, excludePattern?: string, includePath?: string, includePattern?: string}, progress?: (increment: number) => void, configDir?: string): Promise<void> {
     let args = ['storage', 'copy', '-s', `"${localPath}"`, '-d', `"${container.uri}/${remotePath}"`];
     if (container.storageAccount.key) {
         args.push('--account-key', container.storageAccount.key);
@@ -229,8 +241,12 @@ export async function upload(localPath: string, remotePath: string, container: B
         }
     }
     outputChannel.appendLine(`[CMD] > az ${args.join(' ')}`);
+    let env = process.env;
+    if (configDir) {
+        env['AZURE_CONFIG_DIR'] = configDir;
+    }
     return new Promise<void>((resolve, reject) => {
-        let proc = cp.spawn('az', args, {shell: true});
+        let proc = cp.spawn('az', args, {shell: true, env: env});
         let lastPercent = 0;
         proc.stdout.on('data', (data) => {
             let sdata = String(data);

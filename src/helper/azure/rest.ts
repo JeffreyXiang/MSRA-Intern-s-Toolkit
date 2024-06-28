@@ -13,40 +13,10 @@ export enum RESTMethod {
     PUT = 'put',
 }
 
-// NOTE: Requesting with az cli will bring some problems, so we use axios instead.
-// export async function request(method: RESTMethod, uri: string, body?: any, headers?: {[key: string]: string}) {
-//     let bodyStr = body ? JSON.stringify(body) : undefined;
-//     let headersStr = headers ? JSON.stringify(headers) : undefined;
-//     if (!uri.startsWith('\"') && !uri.endsWith('\"')) uri = `"${uri}"`;
-//     let args = ['rest',
-//         '--method', method,
-//         '--uri', uri,
-//     ];
-//     if (bodyStr) args.push('--body', `"${bodyStr.replaceAll(`'`, `\\'`).replaceAll(`"`, `'`)}"`);
-//     if (headersStr) args.push('--headers', `"${headersStr.replaceAll(`'`, `\\'`).replaceAll(`"`, `'`)}"`);
-//     outputChannel.appendLine('[CMD] > az ' + args.join(' '));
-//     return new Promise<any>((resolve, reject) => {
-//         cp.exec('az ' + args.join(' '), {}, (error, stdout, stderr) => {
-//             if (stdout) {
-//                 outputChannel.appendLine('[CMD OUT] ' + stdout);
-//                 resolve(JSON.parse(stdout));
-//             }
-//             if (stderr) {
-//                 outputChannel.appendLine('[CMD ERR] ' + stderr);
-//                 reject(stderr);
-//             }
-//             if (error) {
-//                 outputChannel.appendLine('[CMD ERR] ' + error.message);
-//                 reject(error.message);
-//             }
-//         });
-//     });
-// }
-
-export async function request(method: RESTMethod, uri: string, body?: any, headers?: {[key: string]: string}) {
+export async function request(method: RESTMethod, uri: string, body?: any, headers?: {[key: string]: string}, configDir?: string) {
     if (!headers) headers = {};
     if (!headers.hasOwnProperty('Authorization')) {
-        headers['Authorization'] = `Bearer ${await getAccessToken()}`;
+        headers['Authorization'] = `Bearer ${await getAccessToken(configDir)}`;
     }
     if (!headers.hasOwnProperty('Content-Type')) {
         headers['Content-Type'] = 'application/json';
@@ -82,11 +52,13 @@ export async function request(method: RESTMethod, uri: string, body?: any, heade
     }
 }
 
-export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUrl: string, content?: any}[]) {
+export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUrl: string, content?: any}[], configDir?: string) {
     let responses = await request(
         RESTMethod.POST,
         '/batch?api-version=2020-06-01',
-        {requests: requests}
+        {requests: requests},
+        undefined,
+        configDir,
     );
     return responses.responses;
 }
