@@ -144,21 +144,21 @@ export async function create(Workspace: Workspace, specFile: string, configDir?:
     }
     return new Promise((resolve, reject) => {
         cp.exec(`az ml job create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`, {env: env}, (error, stdout, stderr) => {
+            if (error) {
+                outputChannel.appendLine(`[CMD ERR] ${error.message}`);
+                console.error(`msra_intern_s_toolkit.create: error - ${error.message}`);
+                if (stderr.includes(`'ml' is misspelled or not recognized by the system.`)) {
+                    reject('azure_ml_ext_not_installed');
+                }
+                reject('failed_to_create_job');
+            }
             if (stdout) {
                 outputChannel.appendLine(`[CMD OUT] ${stdout}`);
                 resolve(JSON.parse(stdout));
             }
-            if (error) {
-                outputChannel.appendLine(`[CMD ERR] ${error.message}`);
-                console.error(`msra_intern_s_toolkit.create: error - ${error.message}`);
-                reject('failed_to_create_job');
-            }
             if (stderr) {
                 outputChannel.appendLine(`[CMD ERR] ${stderr}`);
                 console.error(`msra_intern_s_toolkit.create: stderr - ${stderr}`);
-                if (stderr.includes(`'ml' is misspelled or not recognized by the system.`)) {
-                    reject('azure_ml_ext_not_installed');
-                }
                 reject('failed_to_create_job');
             }
         });

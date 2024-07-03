@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getFile } from '../helper/file_utils';
+import { getExtensionFile } from '../helper/file_utils';
 import * as job from '../submit_jobs';
 import { vscodeContext } from '../extension';
 import { deepCopy } from '../utils';
@@ -23,7 +23,7 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
     private html: string;
 
     constructor() {
-        this.html = getFile('html/submit_jobs.html');
+        this.html = getExtensionFile('html/submit_jobs.html');
     }
 
     public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken) {
@@ -88,7 +88,9 @@ export class SubmitJobsView implements vscode.WebviewViewProvider {
             }
             let message = {command: 'setContent', params: msg_params};
             this.view.webview.postMessage(message);
-            this.view.title = 'Submit Jobs' + (params.activeProfile ? ` (${params.activeProfile.name})` : '');
+            if (params.hasOwnProperty('activeProfile')) {
+                this.view.title = 'Submit Jobs' + (params.activeProfile ? ` (${params.activeProfile.name})` : '');
+            }
         }
     }
 

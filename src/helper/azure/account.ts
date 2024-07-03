@@ -42,7 +42,7 @@ export async function login(deviceCodeCallback?: (authcode: string) => any, conf
                 reject('az_cli_not_installed');
             }
         });
-        proc.on('exit', code => {
+        proc.on('close', code => {
             if (code != 0 && code != null) {
                 outputChannel.appendLine(`[CMD ERR] az failed with exit code ${code}`);
                 reject(`az_failed_with_exit_code_${code}`);
@@ -68,10 +68,6 @@ export async function getAccount(configDir?: string): Promise<any> {
     }
     return new Promise((resolve, reject) => {
         cp.exec('az account show', {env: env}, (error, stdout, stderr) => {
-            if (stdout) {
-                outputChannel.appendLine('[CMD OUT] ' + stdout);
-                resolve(JSON.parse(stdout));
-            }
             if (error) {
                 outputChannel.appendLine('[CMD ERR] ' + error.message);
                 console.error(`msra_intern_s_toolkit.getAccount: error - ${error.message}`);
@@ -82,6 +78,10 @@ export async function getAccount(configDir?: string): Promise<any> {
                     reject('az_cli_not_installed');
                 }
                 reject('failed_to_get_account');
+            }
+            if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
+                resolve(JSON.parse(stdout));
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
@@ -100,14 +100,14 @@ export async function getAccessToken(configDir?: string): Promise<string> {
     }
     return new Promise((resolve, reject) => {
         cp.exec('az account get-access-token', {env: env}, (error, stdout, stderr) => {
-            if (stdout) {
-                outputChannel.appendLine('[CMD OUT] ' + stdout);
-                resolve(JSON.parse(stdout).accessToken);
-            }
             if (error) {
                 outputChannel.appendLine('[CMD ERR] ' + error.message);
                 console.error(`msra_intern_s_toolkit.getAccessToken: error - ${error.message}`);
                 reject('failed_to_get_access_token');
+            }
+            if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
+                resolve(JSON.parse(stdout).accessToken);
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
@@ -127,6 +127,11 @@ export async function getSubscriptions(refresh: boolean = false, configDir?: str
     }
     return new Promise((resolve, reject) => {
         cp.exec(cmd, {env: env}, (error, stdout, stderr) => {
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.getSubscriptions: error - ${error.message}`);
+                reject('failed_to_get_subscriptions');
+            }
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let subscriptions: Subscription[] = [];
@@ -134,11 +139,6 @@ export async function getSubscriptions(refresh: boolean = false, configDir?: str
                     subscriptions.push(new Subscription(element.id, element.name));
                 });
                 resolve(subscriptions);
-            }
-            if (error) {
-                outputChannel.appendLine('[CMD ERR] ' + error.message);
-                console.error(`msra_intern_s_toolkit.getSubscriptions: error - ${error.message}`);
-                reject('failed_to_get_subscriptions');
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);

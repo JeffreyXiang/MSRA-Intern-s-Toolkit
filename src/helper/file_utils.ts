@@ -1,10 +1,18 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs'
+import * as os from 'os'
 import * as path from 'path'
 
-import { vscodeContext } from '../extension'
+import { vscodeContext } from '../extension';
 
 export function globalPath(file_path: string) {
+    // return path.join(vscodeContext.extensionPath, file_path)
+    // This may cause Path length over 260 characters error on Windows
+    // Use user path instead (C:\Users\username\.msra_intern_s_toolkit)
+    return path.join(os.homedir(), '.msra_intern_s_toolkit', file_path)
+}
+
+export function extensionPath(file_path: string) {
     return path.join(vscodeContext.extensionPath, file_path)
 }
 
@@ -34,6 +42,12 @@ export function listFiles(dir_path: string) {
     let dir = globalPath(dir_path)
     if (!fs.existsSync(dir)) return []
     return fs.readdirSync(dir, { encoding: 'utf8' }) 
+}
+
+export function getExtensionFile(file_path: string) {
+    let file = extensionPath(file_path)
+    let data = fs.readFileSync(file, { encoding: 'utf8' })
+    return data
 }
 
 export function getWorkspaceFile(file_path: string) {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getFile } from '../helper/file_utils';
+import { getExtensionFile } from '../helper/file_utils';
 import * as gcr from '../gcr_tunnel';
 
 export class GCRTunnelView implements vscode.WebviewViewProvider {
@@ -7,7 +7,7 @@ export class GCRTunnelView implements vscode.WebviewViewProvider {
     private html: string;
 
     constructor() {
-        this.html = getFile('html/gcr_tunnel.html');
+        this.html = getExtensionFile('html/gcr_tunnel.html');
     }
 
     public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken) {

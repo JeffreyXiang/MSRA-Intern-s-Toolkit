@@ -9,14 +9,14 @@ export async function getSignedInUser(configDir?: string): Promise<any> {
     }
     return new Promise((resolve, reject) => {
         cp.exec('az ad signed-in-user show', {env: env}, (error, stdout, stderr) => {
-            if (stdout) {
-                outputChannel.appendLine('[CMD OUT] ' + stdout);
-                resolve(JSON.parse(stdout));
-            }
             if (error) {
                 outputChannel.appendLine('[CMD ERR] ' + error.message);
                 console.error(`msra_intern_s_toolkit.getSignedInUser: error - ${error.message}`);
                 reject('failed_to_get_signed_in_user');
+            }
+            if (stdout) {
+                outputChannel.appendLine('[CMD OUT] ' + stdout);
+                resolve(JSON.parse(stdout));
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);

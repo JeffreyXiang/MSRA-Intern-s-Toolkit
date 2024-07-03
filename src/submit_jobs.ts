@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as parsec from 'typescript-parsec'
+import * as cp from 'child_process';
 import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp, deepCopy, randomString} from './utils'
 import {workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles, exists, saveFile, getFile} from './helper/file_utils'
@@ -475,6 +476,33 @@ export async function manageDatastores() {
     }
 }
 
+async function showInstallAzureMLExtension() {
+    let selected = await vscode.window.showInformationMessage('Install Azure ML extension?', 'Yes', 'No');
+    if (selected !== 'Yes') return;
+    outputChannel.appendLine('[CMD] > az extension add --name ml');
+    let env = process.env;
+    env['AZURE_CONFIG_DIR'] = activeProfile!.azureConfigDir;
+    return vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, cancellable: false},
+        (async (progress) => {
+            await new Promise<void>((resolve, reject) => {
+                progress.report({message: "Installing Azure ML extension..."});
+                cp.exec('az extension add --name ml', {env: env}, (error, stdout, stderr) => {
+                    if (error) {
+                        outputChannel.appendLine('[CMD ERR] ' + error.message);
+                        showErrorMessageWithHelp('Failed to install Azure ML extension.');
+                        reject('failed_to_install_azure_ml_ext');
+                    }
+                    else {
+                        vscode.window.showInformationMessage('Azure ML extension installed.');
+                        resolve();
+                    }
+                });
+            });
+        })
+    );
+}
+
 export async function synchronize(jobcfg?: JobConfig) {
     let cfg: JobConfig = jobcfg ? jobcfg : deepCopy(config);
     if (cfg.synchronization.target == '') {
@@ -610,6 +638,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         if (datastoreCreatePromises[i].status == 'rejected') {
             if ((datastoreCreatePromises[i] as PromiseRejectedResult).reason == 'azure_ml_ext_not_installed') {
                 showErrorMessageWithHelp(`Failed to submit the job. Azure ML extension not installed.`);
+                showInstallAzureMLExtension();
                 throw 'azure_ml_ext_not_installed';
             }
             errorMsgs.push(`  ${datastores[i].name}`);
@@ -628,6 +657,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     } catch (err) {
         if (err == 'azure_ml_ext_not_installed') {
             showErrorMessageWithHelp(`Failed to submit the job. Azure ML extension not installed.`);
+            showInstallAzureMLExtension();
             throw 'azure_ml_ext_not_installed';
         }
         showErrorMessageWithHelp('Failed to submit the job. Failed to create the job.');
@@ -837,7 +867,7 @@ export function refreshUI(params?: uiParams) {
 export function loggedOut() {
     activeProfile = undefined;
     resource = new Resource();
-    ui.setContent({resource: undefined, activeProfile: undefined});
+    refreshUI({resource: resource, activeProfile: activeProfile});
 }
 
 export async function loggedIn(profile: profile.Profile) {
@@ -846,7 +876,7 @@ export async function loggedIn(profile: profile.Profile) {
     if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0) {
         await getComputeResources();
     }
-    ui.setContent({resource: resource, activeProfile: activeProfile});
+    refreshUI({resource: resource, activeProfile: activeProfile});
 }
 
 export function init() {

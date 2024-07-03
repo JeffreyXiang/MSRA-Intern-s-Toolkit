@@ -252,7 +252,7 @@ function openSSHTunnel(i: number) {
     outputChannel.appendLine(`[CMD] > ssh ${args.join(' ')}`);
     let proc = cp.spawn('ssh', args, {detached: true, stdio: 'ignore'});
     proc.unref();
-    proc.on('exit', (code) => {
+    proc.on('close', (code) => {
         if (tunnels[i].state == 'ssh_opening') {
             showErrorMessageWithHelp(`Failed to open GCR tunnel${i}. SSH tunnel failed.`);
             tunnels[i].state = 'ssh_opening_failed'

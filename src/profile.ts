@@ -20,7 +20,7 @@ export class Profile {
         if (init.id) this.id = init.id;
         else this.id = uuid4();
         this.name = init.name;
-        this.userDataPath = `userdata/${this.id}`;
+        this.userDataPath = `${this.id}`;
         this.azureConfigDir = globalPath(`${this.userDataPath}/.azure`);
         this.domain = init.domain;
         this.alias = init.alias;
@@ -37,7 +37,7 @@ const MODULE_NAMES = ['submitJobs', 'gcrTunnel', 'pim'];
 
 
 function saveProfileCache() {
-    saveFile('userdata/profiles.json', JSON.stringify({
+    saveFile('profiles.json', JSON.stringify({
         profiles: profiles.map(profile => {
             return {
                 id: profile.id,
@@ -55,9 +55,9 @@ function saveProfileCache() {
 }
 
 function loadProfileCache() {
-    if (exists('userdata/profiles.json')) {
+    if (exists('profiles.json')) {
         profiles = [];
-        let cache = JSON.parse(getFile('userdata/profiles.json'));
+        let cache = JSON.parse(getFile('profiles.json'));
         cache.profiles.forEach((profile: any) => {
             profiles.push(new Profile(profile));
         });
@@ -82,6 +82,7 @@ async function manageProfiles() {
         if (profile.isLoggedIn) buttons.push({iconPath: new vscode.ThemeIcon('log-out'), tooltip: 'Logout'});
         else buttons.push({iconPath: new vscode.ThemeIcon('log-in'), tooltip: 'Login'});
         buttons.push({iconPath: new vscode.ThemeIcon('edit'), tooltip: 'Edit'});
+        buttons.push({iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Open terminal'});
         buttons.push({iconPath: new vscode.ThemeIcon('trash'), tooltip: 'Delete'});
         let label = `\$(${profile.isLoggedIn ? 'pass' : 'circle-slash'}) ${profile.name}`;
         items.push({
@@ -117,6 +118,15 @@ async function manageProfiles() {
             await editProfile(profile);
             manageProfiles();
         }
+        else if (e.button.tooltip == 'Open terminal') {
+            let terminal = vscode.window.createTerminal({
+                name: `Azure CLI - ${profile.name}`,
+                env: {
+                    'AZURE_CONFIG_DIR': profile.azureConfigDir
+                },
+            });
+            terminal.show();
+        }
         else if (e.button.tooltip == 'Delete') {
             let selected = await vscode.window.showQuickPick(['Yes', 'No'], { title: `Are you sure you want to delete profile ${profile.name}?`, ignoreFocusOut: true });
             if (selected == 'Yes') {
@@ -151,8 +161,10 @@ async function setProfile(module: any, module_name: string) {
         let profile = label2profile.get(selected.label)!;
         if (profile.isLoggedIn){
             activeProfileId[module_name] = profile.id;
-            module.loggedOut();
-            module.loggedIn(profile);
+            if (module.activeProfile.id != profile.id) {
+                module.loggedOut();
+                module.loggedIn(profile);
+            }
             saveProfileCache();
             panel.hide();
         }

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { vscodeContext } from '../extension';
-import { getFile } from '../helper/file_utils';
+import { getExtensionFile } from '../helper/file_utils';
 import * as pim from '../pim';
 
 export class PIMView implements vscode.WebviewViewProvider {
@@ -8,7 +8,7 @@ export class PIMView implements vscode.WebviewViewProvider {
     private html: string;
 
     constructor() {
-        this.html = getFile('html/pim.html');
+        this.html = getExtensionFile('html/pim.html');
     }
 
     public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken) {

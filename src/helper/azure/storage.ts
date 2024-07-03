@@ -102,6 +102,11 @@ export async function getAccounts(subscriptionId: string, configDir?: string): P
     }
     return new Promise((resolve, reject) => {
         cp.exec(`az storage account list --subscription ${subscriptionId}`, {env: env}, (error, stdout, stderr) => {
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.getAccounts: error - ${error.message}`);
+                reject('failed_to_get_accounts');
+            }
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let accounts: StorageAccount[] = [];
@@ -113,11 +118,6 @@ export async function getAccounts(subscriptionId: string, configDir?: string): P
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
                 console.error(`msra_intern_s_toolkit.getAccounts: stderr - ${stderr}`);
-                reject('failed_to_get_accounts');
-            }
-            if (error) {
-                outputChannel.appendLine('[CMD ERR] ' + error.message);
-                console.error(`msra_intern_s_toolkit.getAccounts: error - ${error.message}`);
                 reject('failed_to_get_accounts');
             }
         });
@@ -142,6 +142,11 @@ export async function getContainers(account: StorageAccount, configDir?: string)
     }
     return new Promise((resolve, reject) => {
         cp.exec(cmd, {env: env}, (error, stdout, stderr) => {
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.getContainers: error - ${error.message}`);
+                reject('failed_to_get_containers');
+            }
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let containers: BlobContainer[] = [];
@@ -153,11 +158,6 @@ export async function getContainers(account: StorageAccount, configDir?: string)
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
                 console.error(`msra_intern_s_toolkit.getContainers: stderr - ${stderr}`);
-                reject('failed_to_get_containers');
-            }
-            if (error) {
-                outputChannel.appendLine('[CMD ERR] ' + error.message);
-                console.error(`msra_intern_s_toolkit.getContainers: error - ${error.message}`);
                 reject('failed_to_get_containers');
             }
         });
@@ -185,6 +185,11 @@ export async function generateSAS(container: BlobContainer, durationDays: number
     }
     return new Promise((resolve, reject) => {
         cp.exec(cmd, {env: env}, (error, stdout, stderr) => {
+            if (error) {
+                outputChannel.appendLine('[CMD ERR] ' + error.message);
+                console.error(`msra_intern_s_toolkit.generateSAS: error - ${error.message}`);
+                reject('failed_to_generate_sas');
+            }
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 resolve(new SharedAccessSignature(stdout.trim().slice(1, -1), expiry));
@@ -192,11 +197,6 @@ export async function generateSAS(container: BlobContainer, durationDays: number
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
                 console.error(`msra_intern_s_toolkit.generateSAS: stderr - ${stderr}`);
-                reject('failed_to_generate_sas');
-            }
-            if (error) {
-                outputChannel.appendLine('[CMD ERR] ' + error.message);
-                console.error(`msra_intern_s_toolkit.generateSAS: error - ${error.message}`);
                 reject('failed_to_generate_sas');
             }
         });
@@ -265,7 +265,7 @@ export async function upload(localPath: string, remotePath: string, container: B
                 reject('permission_denied');
             }
         });
-        proc.on('exit', (code) => {
+        proc.on('close', (code) => {
             if (code == 0) {
                 resolve();
             } else if (code != null) {

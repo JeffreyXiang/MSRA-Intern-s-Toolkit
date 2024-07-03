@@ -32,9 +32,11 @@ export async function tunnel(
                 resolve();
             }
         });
-        proc.on('error', (error) => {
-            outputChannel.appendLine('[CMD ERR] ' + error.message);
-            reject('failed_to_create_tunnel');
+        proc.on('close', code => {
+            if (code != 0) {
+                outputChannel.appendLine(`[CMD ERR] az failed with exit code ${code}`);
+                reject(`az_failed_with_exit_code_${code}`);
+            }
         });
     });
 }

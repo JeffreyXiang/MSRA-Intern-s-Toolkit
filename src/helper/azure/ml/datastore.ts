@@ -59,21 +59,21 @@ export async function create(Workspace: Workspace, specFile: string, configDir?:
     }
     return new Promise((resolve, reject) => {
         cp.exec(`az ml datastore create -f ${specFile} -w ${Workspace.name} -g ${Workspace.resourceGroup} --subscription ${Workspace.subscriptionId}`, {env: env}, (error, stdout, stderr) => {
+            if (error) {
+                outputChannel.appendLine(`[CMD ERR] ${error.message}`);
+                console.error(`msra_intern_s_toolkit.createDatastore: error - ${error.message}`);
+                if (error.message.includes(`'ml' is misspelled or not recognized by the system.`)) {
+                    reject('azure_ml_ext_not_installed');
+                }
+                reject('failed_to_create_datastore');
+            }
             if (stdout) {
                 outputChannel.appendLine(`[CMD OUT] ${stdout}`);
                 resolve(JSON.parse(stdout));
             }
-            if (error) {
-                outputChannel.appendLine(`[CMD ERR] ${error.message}`);
-                console.error(`msra_intern_s_toolkit.createDatastore: error - ${error.message}`);
-                reject('failed_to_create_datastore');
-            }
             if (stderr) {
                 outputChannel.appendLine(`[CMD ERR] ${stderr}`);
                 console.error(`msra_intern_s_toolkit.createDatastore: stderr - ${stderr}`);
-                if (stderr.includes(`'ml' is misspelled or not recognized by the system.`)) {
-                    reject('azure_ml_ext_not_installed');
-                }
                 reject('failed_to_create_datastore');
             }
         });
