@@ -319,7 +319,7 @@ async function getComputeResources() {
                     azure.ml.getImages(activeProfile!.azureConfigDir)
                 ]);
             } catch (err) {
-                showErrorMessageWithHelp('Failed to get compute resources.');
+                showErrorMessageWithHelp(`Failed to get compute resources. ${err}`);
                 throw 'failed_to_get_compute_resources';
             }
             resource.workspaces = res[0];
@@ -361,6 +361,9 @@ async function setDatastoreAuth(datastore: azure.ml.Datastore, overwrite: boolea
             datastore.authType = 'identity';
             break;
     }
+    selected = await vscode.window.showQuickPick(['Yes', 'No'], {title: 'Allow workspace managed identity access?', ignoreFocusOut: true});
+    if (selected === undefined) return;
+    datastore.allowWorkspaceManagedIdentityAccess = selected == 'Yes';
     return datastore;
 }
 
@@ -479,26 +482,16 @@ export async function manageDatastores() {
 async function showInstallAzureMLExtension() {
     let selected = await vscode.window.showInformationMessage('Install Azure ML extension?', 'Yes', 'No');
     if (selected !== 'Yes') return;
-    outputChannel.appendLine('[CMD] > az extension add --name ml');
-    let env = process.env;
-    env['AZURE_CONFIG_DIR'] = activeProfile!.azureConfigDir;
     return vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, cancellable: false},
         (async (progress) => {
-            await new Promise<void>((resolve, reject) => {
-                progress.report({message: "Installing Azure ML extension..."});
-                cp.exec('az extension add --name ml', {env: env}, (error, stdout, stderr) => {
-                    if (error) {
-                        outputChannel.appendLine('[CMD ERR] ' + error.message);
-                        showErrorMessageWithHelp('Failed to install Azure ML extension.');
-                        reject('failed_to_install_azure_ml_ext');
-                    }
-                    else {
-                        vscode.window.showInformationMessage('Azure ML extension installed.');
-                        resolve();
-                    }
-                });
-            });
+            progress.report({message: "Installing Azure ML extension..."});
+            try {
+                await azure.extension.add('ml', undefined, undefined, activeProfile!.azureConfigDir);
+                vscode.window.showInformationMessage('Azure ML extension installed.');
+            } catch (err) {
+                showErrorMessageWithHelp('Failed to install Azure ML extension.');
+            }
         })
     );
 }
@@ -588,20 +581,6 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     let datastorePaths = datastores.map((v) => `${tempDir}/datastore_${v.name}.yaml`);
     let jobPath = `${tempDir}/job.yaml`;
 
-    // Create the datastore specs
-    let datastoreSpecPromises = await Promise.allSettled(datastores.map((v) => azure.ml.datastore.buildBlobContainerSpec(v)));
-    let errorMsgs = [];
-    for (let i = 0; i < datastoreSpecPromises.length; i++) {
-        if (datastoreSpecPromises[i].status == 'rejected') {
-            errorMsgs.push(`  ${datastores[i].name}: ${(datastoreSpecPromises[i] as PromiseRejectedResult).reason}`);
-        }
-    }
-    if (errorMsgs.length > 0) {
-        showErrorMessageWithHelp(`Failed to submit the job. Failed to build datastore specs for:\n${errorMsgs.join('\n')}`);
-        throw 'failed_to_build_datastore_specs';
-    }
-    let datastoreSpecs = datastoreSpecPromises.map((v) => (v as PromiseFulfilledResult<azure.ml.datastore.Spec>).value);
-
     // Create the job spec
     let jobSpec = azure.ml.job.buildSingulaitySpec(
         config.experiment.job_name,
@@ -619,9 +598,6 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     
     // Save temp files
     saveWorkspaceFile(scriptPath, script);
-    for (let i = 0; i < datastores.length; i++) {
-        saveWorkspaceFile(datastorePaths[i], datastoreSpecs[i].yaml());
-    }
     saveWorkspaceFile(jobPath, jobSpec.yaml());
 
     // Find the workspace
@@ -632,8 +608,8 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     }
 
     // Create datastores
-    let datastoreCreatePromises = await Promise.allSettled(datastorePaths.map((v) => azure.ml.datastore.create(workspace!, workspacePath(v), activeProfile!.azureConfigDir)));
-    errorMsgs = [];
+    let datastoreCreatePromises = await Promise.allSettled(datastores.map((v) => azure.ml.datastore.create(workspace!, v, activeProfile!.azureConfigDir)));
+    let errorMsgs = [];
     for (let i = 0; i < datastoreCreatePromises.length; i++) {
         if (datastoreCreatePromises[i].status == 'rejected') {
             if ((datastoreCreatePromises[i] as PromiseRejectedResult).reason == 'azure_ml_ext_not_installed') {

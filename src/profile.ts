@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp, uuid4} from './utils'
 import {getFile, saveFile, exists, globalPath} from './helper/file_utils'
@@ -70,8 +71,32 @@ async function addProfile() {
     if (name == undefined) return;
     let domain = await vscode.window.showInputBox({prompt: 'Enter domain'});
     if (domain == undefined) return;
-    profiles.push(new Profile({name: name, domain: domain, alias: undefined}));
+    let newProfile = new Profile({name: name, domain: domain, alias: undefined});
+    try {
+        fs.mkdirSync(globalPath(newProfile.userDataPath), {recursive: true});
+    }
+    catch (err) {
+        showErrorMessageWithHelp(`Failed to create profile ${name}. ${err}`);
+        return;
+    }
+    profiles.push(newProfile);
     updateProfiles();
+    vscode.window.showInformationMessage(`Install Azure ML extension for profile ${name}? This is required for submitting jobs to Azure ML.`, 'Yes', 'No').then(async (selected) => {
+        if (selected == 'Yes') {
+            vscode.window.withProgress(
+                {location: vscode.ProgressLocation.Notification, cancellable: false},
+                (async (progress) => {
+                    progress.report({message: "Installing Azure ML extension..."});
+                    try {
+                        await azure.extension.add('ml', undefined, undefined, newProfile.azureConfigDir);
+                        vscode.window.showInformationMessage('Azure ML extension installed.');
+                    } catch (err) {
+                        showErrorMessageWithHelp('Failed to install Azure ML extension.');
+                    }
+                })
+            );
+        }
+    });
 }
 
 async function manageProfiles() {
@@ -130,9 +155,22 @@ async function manageProfiles() {
         else if (e.button.tooltip == 'Delete') {
             let selected = await vscode.window.showQuickPick(['Yes', 'No'], { title: `Are you sure you want to delete profile ${profile.name}?`, ignoreFocusOut: true });
             if (selected == 'Yes') {
-                profiles = profiles.filter(p => p.id != profile.id);
-                updateProfiles();
-                manageProfiles();
+                vscode.window.withProgress(
+                    {location: vscode.ProgressLocation.Notification, cancellable: false},
+                    (async (progress) => {
+                        progress.report({message: `Deleting profile ${profile.name}...`});
+                        try {
+                            await new Promise<void>((resolve, reject) => fs.rmdir(globalPath(profile.userDataPath), {recursive: true}, (err) => err ? reject(err) : resolve()));
+                        }
+                        catch (err) {
+                            showErrorMessageWithHelp(`Failed to delete profile ${profile.name}. ${err}`);
+                            return;
+                        }
+                        profiles = profiles.filter(p => p.id != profile.id);
+                        updateProfiles();
+                        manageProfiles();
+                    })
+                );
             }
         }
     });
@@ -195,9 +233,6 @@ function updateProfiles() {
         if (module.activeProfile != undefined) {
             if (!module.activeProfile.isLoggedIn) {
                 module.loggedOut();
-            }
-            else {
-                module.loggedIn(module.activeProfile);
             }
         }
         if (module.activeProfile == undefined && loggedIn.length > 0) {

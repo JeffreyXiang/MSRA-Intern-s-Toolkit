@@ -1,6 +1,7 @@
 import * as cp from 'child_process'
 import {outputChannel} from '../../extension'
 import * as account from './account'
+import {parseJson} from './utils'
 
 export class StorageAccount {
     id?: string;
@@ -110,10 +111,15 @@ export async function getAccounts(subscriptionId: string, configDir?: string): P
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let accounts: StorageAccount[] = [];
-                JSON.parse(stdout).forEach((element: any) => {
-                    accounts.push(StorageAccount.fromSubscription(element.id, element.name, subscriptionId, element.resourceGroup, element.primaryEndpoints.blob));
-                });
-                resolve(accounts);
+                try {
+                    parseJson(stdout).forEach((element: any) => {
+                        accounts.push(StorageAccount.fromSubscription(element.id, element.name, subscriptionId, element.resourceGroup, element.primaryEndpoints.blob));
+                    });
+                    resolve(accounts);
+                }
+                catch (e) {
+                    reject(e);
+                }
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
@@ -150,10 +156,15 @@ export async function getContainers(account: StorageAccount, configDir?: string)
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let containers: BlobContainer[] = [];
-                JSON.parse(stdout).forEach((element: any) => {
-                    containers.push(new BlobContainer(account, element.name));
-                });
-                resolve(containers);
+                try {
+                    parseJson(stdout).forEach((element: any) => {
+                        containers.push(new BlobContainer(account, element.name));
+                    });
+                    resolve(containers);
+                }
+                catch (e) {
+                    reject(e);
+                }
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);

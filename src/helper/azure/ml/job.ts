@@ -2,6 +2,7 @@ import * as cp from 'child_process'
 import * as YAML from 'yaml'
 import {VirtualCluster, Workspace, Image} from './resource'
 import {outputChannel} from '../../../extension'
+import {parseJson} from '../utils'
 
 export class Input{
     name: string;
@@ -50,9 +51,9 @@ export class Spec{
     compute: string;
     distribution: object;
     resources: object;
+    identity?: object;
 
-    constructor(display_name: string, experiment_name: string, code: string, command: string, inputs: Input[], outputs: Output[], environment: object, compute: string, distribution: object, resources: object){
-        this.display_name = display_name;
+    constructor(display_name: string, experiment_name: string, code: string, command: string, inputs: Input[], outputs: Output[], environment: object, compute: string, distribution: object, resources: object, identity?: object) {        this.display_name = display_name;
         this.experiment_name = experiment_name;
         this.code = code;
         this.command = command;
@@ -62,6 +63,8 @@ export class Spec{
         this.compute = compute;
         this.distribution = distribution;
         this.resources = resources;
+        if (identity)
+            this.identity = identity;
 
         for(let i=0; i<inputs.length; i++){
             (this.inputs as any)[inputs[i].name] = {
@@ -131,7 +134,7 @@ export function buildSingulaitySpec(
                     }
                 },
             },
-        }
+        },
     );
 }
 
@@ -154,7 +157,12 @@ export async function create(Workspace: Workspace, specFile: string, configDir?:
             }
             if (stdout) {
                 outputChannel.appendLine(`[CMD OUT] ${stdout}`);
-                resolve(JSON.parse(stdout));
+                try {
+                    resolve(parseJson(stdout));
+                }
+                catch (e) {
+                    reject(e);
+                }
             }
             if (stderr) {
                 outputChannel.appendLine(`[CMD ERR] ${stderr}`);

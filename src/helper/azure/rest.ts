@@ -26,7 +26,7 @@ export async function request(method: RESTMethod, uri: string, body?: any, heade
         let response = await axios.request({
             method: method,
             url: uri,
-            baseURL: 'https://management.azure.com',
+            baseURL: uri.startsWith('http') ? undefined : 'https://management.azure.com',
             data: body,
             headers: headers,
         });

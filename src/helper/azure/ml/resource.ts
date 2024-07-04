@@ -112,15 +112,21 @@ export class Datastore {
     name: string;
     blobContainer: BlobContainer;
     authType: string;
+    allowWorkspaceManagedIdentityAccess: boolean;
 
-    constructor(name: string, blobContainer: BlobContainer, authType: string) {
+    constructor(name: string, blobContainer: BlobContainer, authType: string, allowWorkspaceManagedIdentityAccess: boolean = false) {
         this.name = name;
         this.blobContainer = blobContainer;
         this.authType = authType;
+        this.allowWorkspaceManagedIdentityAccess = allowWorkspaceManagedIdentityAccess;
     }
 
     static fromJSON(obj: any) {
-        return new Datastore(obj.name, BlobContainer.fromJSON(obj.blobContainer), obj.authType);
+        let ret = new Datastore(obj.name, BlobContainer.fromJSON(obj.blobContainer), obj.authType);
+        if (obj.hasOwnProperty('allowWorkspaceManagedIdentityAccess')) {
+            ret.allowWorkspaceManagedIdentityAccess = obj.allowWorkspaceManagedIdentityAccess;
+        }
+        return ret;
     }
 
     public getUri(directory: string) {

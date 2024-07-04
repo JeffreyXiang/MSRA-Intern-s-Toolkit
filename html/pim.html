@@ -10,7 +10,7 @@
         }
 
         div.spacer {
-            flex-grow: 1;
+            flex: 1 0 0px;
         }
 
         div.groupbar {
@@ -85,13 +85,20 @@
             height: 100%;
             margin-left: 10px;
             margin-right: 5px;
+            font-size: 12px;
+            overflow: hidden;
+            flex: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        div.item .name div {
+            width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font-size: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         div.item .state {
@@ -118,7 +125,6 @@
 
         div.auto_activate i {
             position: relative;
-            left: -0.5px;
             font-size: 14px !important;
         }
 
@@ -253,7 +259,7 @@
                             new_item.id = roles[i].name;
                             new_item.innerHTML = `
                                 <div class="progress"></div>
-                                <div class="name">${roles[i].displayName}</div>
+                                <div class="name"><div>${roles[i].displayName}</div></div>
                                 <div class="spacer"></div>
                                 <div class="auto_activate` +
                                 (params.hasOwnProperty('autoActivationEnabled') && params.autoActivationEnabled[roles[i].name] ? ' checked' : '') +

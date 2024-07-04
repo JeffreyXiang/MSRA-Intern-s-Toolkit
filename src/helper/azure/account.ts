@@ -1,5 +1,6 @@
 import * as cp from 'child_process'
 import {outputChannel} from '../../extension'
+import {parseJson} from './utils'
 
 export class Subscription {
     id: string;
@@ -26,7 +27,12 @@ export async function login(deviceCodeCallback?: (authcode: string) => any, conf
         proc.stdout.on('data', (data) => {
             let sdata = data.toString();
             outputChannel.appendLine('[CMD OUT] ' + sdata);
-            resolve(JSON.parse(sdata))
+            try {
+                resolve(parseJson(sdata));
+            }
+            catch (e) {
+                reject(e);
+            }
         });
         proc.stderr.on('data', (data) => {
             let sdata = data.toString();
@@ -81,7 +87,12 @@ export async function getAccount(configDir?: string): Promise<any> {
             }
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
-                resolve(JSON.parse(stdout));
+                try {
+                    resolve(parseJson(stdout));
+                }
+                catch (e) {
+                    reject(e);
+                }
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
@@ -107,7 +118,12 @@ export async function getAccessToken(configDir?: string): Promise<string> {
             }
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
-                resolve(JSON.parse(stdout).accessToken);
+                try {
+                    resolve(parseJson(stdout).accessToken);
+                }
+                catch (e) {
+                    reject(e);
+                }
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
@@ -135,10 +151,15 @@ export async function getSubscriptions(refresh: boolean = false, configDir?: str
             if (stdout) {
                 outputChannel.appendLine('[CMD OUT] ' + stdout);
                 let subscriptions: Subscription[] = [];
-                JSON.parse(stdout).forEach((element: any) => {
-                    subscriptions.push(new Subscription(element.id, element.name));
-                });
-                resolve(subscriptions);
+                try {
+                    parseJson(stdout).forEach((element: any) => {
+                        subscriptions.push(new Subscription(element.id, element.name));
+                    });
+                    resolve(subscriptions);
+                }
+                catch (e) {
+                    reject(e);
+                }
             }
             if (stderr) {
                 outputChannel.appendLine('[CMD ERR] ' + stderr);
