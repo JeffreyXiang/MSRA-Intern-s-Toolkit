@@ -3,7 +3,7 @@
 	"displayName": "MSRA Intern's Toolkit",
 	"description": "",
 	"icon": "color-icon.png",
-	"version": "2.1.0-nightly.20240704",
+	"version": "2.1.0",
 	"publisher": "jianfeng-xiang",
 	"author": {
 		"name": "Jianfeng Xiang",
@@ -218,6 +218,6 @@
 	"dependencies": {
 		"axios": "^1.7.2",
 		"typescript-parsec": "^0.3.4",
-		"yaml": "^2.4.3"
+		"yaml": "^2.4.5"
 	}
 }

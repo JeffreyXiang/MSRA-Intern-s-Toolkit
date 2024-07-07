@@ -217,10 +217,10 @@ export async function generateSAS(container: BlobContainer, durationDays: number
 export async function upload(localPath: string, remotePath: string, container: BlobContainer, kwargs?: {recursive?: boolean, excludePath?: string, excludePattern?: string, includePath?: string, includePattern?: string}, progress?: (increment: number) => void, configDir?: string): Promise<void> {
     let args = ['storage', 'copy', '-s', `"${localPath}"`, '-d', `"${container.uri}/${remotePath}"`];
     if (container.storageAccount.key) {
-        args.push('--account-key', container.storageAccount.key);
+        args.push('--account-key', `"${container.storageAccount.key}"`);
     }
-    else if (container.storageAccount.subscription) {
-        args.push('--subscription', container.storageAccount.subscription);
+    else {
+        args.push('--sas-token', `"${(await container.generateSAS()).token}"`);
     }
     if (kwargs) {
         if (kwargs.recursive) {

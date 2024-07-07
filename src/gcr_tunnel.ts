@@ -225,6 +225,7 @@ async function openBastionTunnel(i: number) {
             tunnels[i].port,
             subscription,
             resourceGroup,
+            activeProfile!.azureConfigDir,
         );
     } catch (error) {
         if (error == 'azure_bastion_ext_not_installed') {
