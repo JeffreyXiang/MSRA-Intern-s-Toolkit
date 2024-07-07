@@ -22,9 +22,17 @@ First of all, as the welcome says, login to Azure with the **Click to login** bu
 
 **Quick Jump:**
 
+* [Multiple Profiles](#multiple-profiles)
 * [Submit Jobs](#submit-jobs)
 * [Privileged Identity Management (PIM)](#privileged-identity-management-pim)
 * [GCR Tunnel](#gcr-tunnel)
+
+### Multiple Profiles
+
+Under some circumstances, you may need different accounts for different modules. For example, you may need corporation account for GCR tunnel and SC-Alt account for Azure ML. This tool provides a way to login and switch between multiple accounts.
+
+* **Login:** Click the **Click to login** button in the status bar to login. This will show a list of your profiles. Profiles are where your account information is stored. They have an arbitrary name and a domain. Buttons on the right of each profile are for `login`, `logout`, `edit`, `open terminal` and `delete`. Note that, If you want to use `az` command for a specific profile in the terminal, you must open the terminal with the profile.
+* **Switch:** For each module, you can choose the profile to use. The profile you choose will be used for the module. If you haven't logged in, you will be asked to login first. If you have multiple profiles, you can switch between them by clicking the button on the right of the module name.
 
 ### Submit Jobs
 
