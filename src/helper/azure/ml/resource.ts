@@ -81,16 +81,24 @@ export class Workspace {
     name: string;
     subscriptionId: string;
     resourceGroup: string;
+    location: string = '';
+    images: Image[] = [];
 
-    constructor(id: string, name: string, subscriptionId: string, resourceGroup: string) {
+    constructor(id: string, name: string, subscriptionId: string, resourceGroup: string, location: string, images: Image[] = []) {
         this.id = id;
         this.name = name;
         this.subscriptionId = subscriptionId;
         this.resourceGroup = resourceGroup;
+        this.location = location;
+        this.images = images;
     }
 
     static fromJSON(obj: any) {
-        return new Workspace(obj.id, obj.name, obj.subscriptionId, obj.resourceGroup);
+        let new_ws = new Workspace(obj.id, obj.name, obj.subscriptionId, obj.resourceGroup, obj.location);
+        if (obj.hasOwnProperty('images')) {
+            new_ws.images = obj.images.map((image: any) => Image.fromJSON(image));
+        }
+        return new_ws;
     }
 }
 
@@ -144,7 +152,14 @@ export async function getWorkspaces(configDir?: string) {
     );
     let workspaces: Workspace[] = [];
     for (let ws of response.data) {
-        workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup));
+        workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup, ws.location));
+    }
+
+    // Get images
+    let requests = workspaces.map((ws) => getImages(ws, configDir));
+    let responses = await Promise.all(requests);
+    for (let i = 0; i < responses.length; i++) {
+        workspaces[i].images = responses[i];
     }
     
     console.log('msra_intern_s_toolkit.helper.azureml.getWorkspaces: Found ' + workspaces.length + ' workspaces');
@@ -219,10 +234,10 @@ export async function getVirtualClusters(configDir?: string) {
     return virtualClusters;
 }
 
-export async function getImages(InstanceTypeName: string = 'ND5_v2g1', configDir?: string) {
+export async function getImages(workspace: Workspace, configDir?: string) {
     let response = await rest.request(
         rest.RESTMethod.GET,
-        `https://ml.azure.com/api/westus2/virtualcluster/rp/subscriptions/22da88f6-1210-4de2-a5a3-da4c7c2a1213/managedComputeImages?api-version=2021-03-01-preview&instanceType=Singularity.${InstanceTypeName}`,
+        `https://ml.azure.com/api/${workspace.location}/virtualcluster/rp/subscriptions/${workspace.subscriptionId}/managedComputeImages?api-version=2021-03-01-preview`,
         undefined,
         undefined,
         configDir,

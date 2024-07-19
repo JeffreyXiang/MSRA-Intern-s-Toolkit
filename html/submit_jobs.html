@@ -576,7 +576,9 @@
         function update_dropdown_image(input) {
             let dropdown = document.getElementById('dropdown');
             dropdown.innerHTML = '';
-            let images = resource.images;
+            let seleted_ws = document.getElementById('workspace').value;
+            seleted_ws = resource.workspaces.find((item) => item.name == seleted_ws);
+            let images = seleted_ws.images;
             for (let i = 0; i < images.length; i++) {
                 let item = document.createElement('div');
                 item.className = 'item';
@@ -588,6 +590,14 @@
                     hide_dropdown();
                 }
                 dropdown.appendChild(item);
+            }
+            if (images.length == 0) {
+                let prompt = document.createElement('div');
+                prompt.style.color = 'gray';
+                prompt.style.textAlign = 'center';
+                prompt.style.margin = '5px';
+                prompt.innerHTML = 'No image available.';
+                dropdown.appendChild(prompt);
             }
         }
 
@@ -703,7 +713,7 @@
                     }
                     if (params.hasOwnProperty('resource')) {
                         resource = params.resource;
-                        if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0)  {
+                        if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0)  {
                             document.getElementById('no_resource_prompt').style.display = 'block';
                             document.getElementById('cluster_group').style.display = 'none';
                         }

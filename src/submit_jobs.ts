@@ -103,7 +103,6 @@ export class JobConfig {
 export class Resource {
     workspaces: azure.ml.Workspace[] = [];
     virtualClusters: azure.ml.VirtualCluster[] = [];
-    images: azure.ml.Image[] = [];
     datastores: azure.ml.Datastore[] = [];
 
     constructor(init?: any) {
@@ -114,9 +113,6 @@ export class Resource {
         );
         if (init.virtualClusters !== undefined) this.virtualClusters = init.virtualClusters.map(
             (v: any) => azure.ml.VirtualCluster.fromJSON(v)
-        );
-        if (init.images !== undefined) this.images = init.images.map(
-            (v: any) => azure.ml.Image.fromJSON(v)
         );
         if (init.datastores !== undefined) this.datastores = init.datastores.map(
             (v: any) => azure.ml.Datastore.fromJSON(v)
@@ -316,7 +312,6 @@ async function getComputeResources() {
                 res = await Promise.all([
                     azure.ml.getWorkspaces(activeProfile!.azureConfigDir),
                     azure.ml.getVirtualClusters(activeProfile!.azureConfigDir),
-                    azure.ml.getImages(activeProfile!.azureConfigDir)
                 ]);
             } catch (err) {
                 showErrorMessageWithHelp(`Failed to get compute resources. ${err}`);
@@ -324,7 +319,6 @@ async function getComputeResources() {
             }
             resource.workspaces = res[0];
             resource.virtualClusters = res[1];
-            resource.images = res[2];
             azure.ml.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
             saveResourceCache();
             return 'success';
@@ -393,7 +387,7 @@ async function newDatastore() {
             })
         );
         if (subscriptions === undefined) return;
-        selected = await vscode.window.showQuickPick(subscriptions.map((v) => v.name), {title: 'Select subscription to get workspaces', ignoreFocusOut: true});
+        selected = await vscode.window.showQuickPick(subscriptions.map((v) => v.name), {title: 'Select subscription to get storage account', ignoreFocusOut: true});
         if (selected === undefined) return;
         let subscription = subscriptions.find((v) => v.name == selected)!;
         // Get Storage Accounts
@@ -589,7 +583,9 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         command,
         inputs,
         outputs,
-        resource.images.find((v) => v.name == config.environment.image)!,
+        resource.workspaces
+            .find((v) => v.name == config.cluster.workspace)!.images
+            .find((v) => v.name == config.environment.image)!,
         resource.virtualClusters.find((v) => v.name == config.cluster.virtual_cluster)!,
         config.cluster.instance_type,
         config.cluster.node_count,
@@ -674,7 +670,9 @@ export async function submit() {
                 showErrorMessageWithHelp(`Failed to submit the job. Workspace ${cfg.cluster.workspace} not found.`);
                 throw 'failed_to_find_workspace';
             }
-            if (resource.images.find((v) => v.name == cfg.environment.image) === undefined) {
+            if (resource.workspaces
+                    .find((v) => v.name == cfg.cluster.workspace)!.images
+                    .find((v) => v.name == cfg.environment.image) === undefined) {
                 showErrorMessageWithHelp(`Failed to submit the job. Image ${cfg.environment.image} not found.`);
                 throw 'failed_to_find_image';
             }
@@ -849,7 +847,7 @@ export function loggedOut() {
 export async function loggedIn(profile: profile.Profile) {
     activeProfile = profile;
     loadResourceCache();
-    if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0 || resource.images.length == 0) {
+    if (resource.workspaces.length == 0 || resource.virtualClusters.length == 0) {
         await getComputeResources();
     }
     refreshUI({resource: resource, activeProfile: activeProfile});
