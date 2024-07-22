@@ -572,7 +572,6 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     // Create the temp paths
     let tempDir = `./temp/submit_jobs/${new Date().getTime()}`;
     let scriptPath = `${tempDir}/script.sh`;
-    let datastorePaths = datastores.map((v) => `${tempDir}/datastore_${v.name}.yaml`);
     let jobPath = `${tempDir}/job.yaml`;
 
     // Create the job spec
@@ -589,7 +588,10 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         resource.virtualClusters.find((v) => v.name == config.cluster.virtual_cluster)!,
         config.cluster.instance_type,
         config.cluster.node_count,
-        config.cluster.sla_tier
+        vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<string>('priority')!,
+        config.cluster.sla_tier,
+        vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<object>('interactive')![config.cluster.sla_tier as keyof object],
+        vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<boolean>('enableAzmlInt')!,
     );
     
     // Save temp files

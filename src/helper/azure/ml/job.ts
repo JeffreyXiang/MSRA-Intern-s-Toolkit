@@ -98,7 +98,10 @@ export function buildSingulaitySpec(
     virtualCluster: VirtualCluster,
     instanceType: string,
     nodeCount: number,
+    priority: string,
     slaTier: string,
+    interactive: boolean,
+    enableAzmlInt: boolean,
 ): Spec{
     return new Spec(
         displayName,
@@ -123,10 +126,11 @@ export function buildSingulaitySpec(
             instance_count: nodeCount,
             properties: {
                 AISuperComputer: {
-                    interactive: (slaTier == 'Premium') ? true : false,
+                    interactive: interactive,
                     imageVersion: image.name,
-                    priority: 'High',
+                    priority: priority,
                     slaTier: slaTier,
+                    enableAzmlInt: enableAzmlInt,
                     scalePolicy: {
                         autoScaleIntervalInSec: 120,
                         maxInstanceTypeCount: nodeCount,

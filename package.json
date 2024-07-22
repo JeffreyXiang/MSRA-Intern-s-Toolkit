@@ -3,7 +3,7 @@
 	"displayName": "MSRA Intern's Toolkit",
 	"description": "",
 	"icon": "color-icon.png",
-	"version": "2.1.1",
+	"version": "2.2.0-nightly.20240722",
 	"publisher": "jianfeng-xiang",
 	"author": {
 		"name": "Jianfeng Xiang",
@@ -80,6 +80,41 @@
 					"type": "number",
 					"default": 3,
 					"description": "The maximum number of trials to reconnect to the GCR Tunnel when unexpectedly disconnected."
+				},
+				"msra_intern_s_toolkit.submitJobs.priority": {
+					"type": "string",
+					"enum": [
+						"High",
+						"Medium",
+						"Low"
+					],
+					"default": "High",
+					"description": "The priority of the job."
+				},
+				"msra_intern_s_toolkit.submitJobs.interactive": {
+					"type": "object",
+					"properties": {
+						"Premium": {
+							"type": "boolean"
+						},
+						"Standard": {
+							"type": "boolean"
+						},
+						"Basic": {
+							"type": "boolean"
+						}
+					},
+					"additionalProperties": false,
+					"default": {
+						"Premium": true,
+						"Standard": false,
+						"Basic": false
+					},
+					"description": "Whether to enable the interactive mode for each type of job."
+				},
+				"msra_intern_s_toolkit.submitJobs.enableAzmlInt": {
+					"type": "boolean",
+					"default": true
 				}
 			}
 		},
