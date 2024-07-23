@@ -37,7 +37,7 @@ export async function create(
                 credentialsType: 'Sas',
                 secrets: {
                     secretsType: 'Sas',
-                    sasToken: (await datastore.blobContainer.generateSAS()).token
+                    sasToken: (await datastore.blobContainer.generateSAS(7, 'acdlrw', configDir)).token
                 }
             }
             break;

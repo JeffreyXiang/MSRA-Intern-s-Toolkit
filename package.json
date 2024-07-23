@@ -3,7 +3,7 @@
 	"displayName": "MSRA Intern's Toolkit",
 	"description": "",
 	"icon": "color-icon.png",
-	"version": "2.2.0-nightly.20240722",
+	"version": "2.2.0-nightly.20240723",
 	"publisher": "jianfeng-xiang",
 	"author": {
 		"name": "Jianfeng Xiang",
@@ -66,6 +66,14 @@
 				"command": "msra_intern_s_toolkit.setSubmitJobsProfile",
 				"title": "Set Submit Jobs Profile",
 				"icon": "$(account)"
+			},
+			{
+				"command": "msra_intern_s_toolkit.quickCmd",
+				"title": "MSRA Intern's Toolkit: Quick Command"
+			},
+			{
+				"command": "msra_intern_s_toolkit.quickCmdFromTerminal",
+				"title": "MSRA Intern's Toolkit: Quick Command from Terminal"
 			}
 		],
 		"configuration": {
@@ -175,6 +183,10 @@
 				},
 				{
 					"command": "msra_intern_s_toolkit.setSubmitJobsProfile",
+					"when": "false"
+				},
+				{
+					"command": "msra_intern_s_toolkit.quickCmdFromTerminal",
 					"when": "false"
 				}
 			],

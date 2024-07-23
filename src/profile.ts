@@ -178,43 +178,54 @@ async function manageProfiles() {
     panel.show();
 }
 
-async function setProfile(module: any, module_name: string) {
-    let items: vscode.QuickPickItem[] = [];
-    let label2profile: Map<string, Profile> = new Map();
-    for (let profile of profiles) {
-        let label = `\$(${profile.isLoggedIn ? 'pass' : 'circle-slash'}) ${profile.name}`;
-        items.push({
-            label: label,
-            description: profile.alias ? `${profile.domain}.${profile.alias}` : profile.domain,
+export async function selectProfile(title: string): Promise<Profile | undefined> {
+    return new Promise((resolve) => {
+        let items: vscode.QuickPickItem[] = [];
+        let label2profile: Map<string, Profile> = new Map();
+        for (let profile of profiles) {
+            let label = `\$(${profile.isLoggedIn ? 'pass' : 'circle-slash'}) ${profile.name}`;
+            items.push({
+                label: label,
+                description: profile.alias ? `${profile.domain}.${profile.alias}` : profile.domain,
+            });
+            label2profile.set(label, profile);
+        }
+        let panel = vscode.window.createQuickPick();
+        panel.items = items;
+        panel.ignoreFocusOut = true;
+        panel.title = title;
+        let infoed = false;
+        panel.onDidAccept(() => {
+            let selected = panel.selectedItems[0];
+            let profile = label2profile.get(selected.label)!;
+            if (profile.isLoggedIn){
+                resolve(profile);
+                panel.dispose();
+            }
+            else {
+                if (!infoed) {
+                    vscode.window.showInformationMessage('You can only select a profile that is logged in.');
+                    infoed = true;
+                }
+            }
         });
-        label2profile.set(label, profile);
-    }
-    let panel = vscode.window.createQuickPick();
-    panel.items = items;
-    panel.ignoreFocusOut = true;
-    panel.title = `Select profile for ${module_name}`;
-    let infoed = false;
-    panel.onDidAccept(() => {
-        let selected = panel.selectedItems[0];
-        let profile = label2profile.get(selected.label)!;
-        if (profile.isLoggedIn){
-            activeProfileId[module_name] = profile.id;
-            if (module.activeProfile.id != profile.id) {
-                module.loggedOut();
-                module.loggedIn(profile);
-            }
-            saveProfileCache();
-            panel.hide();
-        }
-        else {
-            if (!infoed) {
-                vscode.window.showInformationMessage('You can only select a profile that is logged in.');
-                infoed = true;
-            }
-        }
+        panel.onDidHide(() => {
+            resolve(undefined);
+            panel.dispose();
+        });
+        panel.show();
     });
-    panel.onDidHide(() => panel.dispose());
-    panel.show();
+}
+
+async function setProfile(module: any, module_name: string) {
+    let prof = await selectProfile(`Select profile for ${module_name}`);
+    if (prof == undefined) return;
+    activeProfileId[module_name] = prof.id;
+    if (module.activeProfile.id != prof.id) {
+        module.loggedOut();
+        module.loggedIn(prof);
+    }
+    saveProfileCache();
 }
 
 function updateProfiles() {

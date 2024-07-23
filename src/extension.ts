@@ -5,6 +5,7 @@ import * as profile from './profile';
 import * as job from './submit_jobs';
 import * as gcr from './gcr_tunnel';
 import * as pim from './pim';
+import * as quickcmd from './quickcmd';
 
 export var vscodeContext:vscode.ExtensionContext;
 export var outputChannel:vscode.OutputChannel = vscode.window.createOutputChannel('MSRA Intern\'s Toolkit');
@@ -25,6 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
 		job.init();
 		gcr.init();
 		pim.init();
+		quickcmd.init();
 	}));
 }
 

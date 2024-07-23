@@ -220,7 +220,7 @@ export async function upload(localPath: string, remotePath: string, container: B
         args.push('--account-key', `"${container.storageAccount.key}"`);
     }
     else {
-        args.push('--sas-token', `"${(await container.generateSAS()).token}"`);
+        args.push('--sas-token', `"${(await container.generateSAS(7, 'acdlrw', configDir)).token}"`);
     }
     if (kwargs) {
         if (kwargs.recursive) {
