@@ -13,7 +13,6 @@ export class Profile {
     name: string;
     userDataPath: string;
     azureConfigDir: string;
-    domain: string;
     alias: string;
     isLoggedIn: boolean;
 
@@ -23,7 +22,6 @@ export class Profile {
         this.name = init.name;
         this.userDataPath = `${this.id}`;
         this.azureConfigDir = globalPath(`${this.userDataPath}/.azure`);
-        this.domain = init.domain;
         this.alias = init.alias;
         this.isLoggedIn = false;
     }
@@ -43,7 +41,6 @@ function saveProfileCache() {
             return {
                 id: profile.id,
                 name: profile.name,
-                domain: profile.domain,
                 alias: profile.alias
             };
         }),
@@ -69,9 +66,7 @@ function loadProfileCache() {
 async function addProfile() {
     let name = await vscode.window.showInputBox({prompt: 'Enter profile name'});
     if (name == undefined) return;
-    let domain = await vscode.window.showInputBox({prompt: 'Enter domain'});
-    if (domain == undefined) return;
-    let newProfile = new Profile({name: name, domain: domain, alias: undefined});
+    let newProfile = new Profile({name: name, alias: undefined});
     try {
         fs.mkdirSync(globalPath(newProfile.userDataPath), {recursive: true});
     }
@@ -112,7 +107,7 @@ async function manageProfiles() {
         let label = `\$(${profile.isLoggedIn ? 'pass' : 'circle-slash'}) ${profile.name}`;
         items.push({
             label: label,
-            description: profile.alias ? `${profile.domain}.${profile.alias}` : profile.domain,
+            description: profile.alias ? `${profile.alias}` : undefined,
             buttons: buttons,
         });
         label2profile.set(label, profile);
@@ -186,7 +181,7 @@ export async function selectProfile(title: string): Promise<Profile | undefined>
             let label = `\$(${profile.isLoggedIn ? 'pass' : 'circle-slash'}) ${profile.name}`;
             items.push({
                 label: label,
-                description: profile.alias ? `${profile.domain}.${profile.alias}` : profile.domain,
+                description: profile.alias ? `${profile.alias}` : undefined,
             });
             label2profile.set(label, profile);
         }
@@ -383,10 +378,7 @@ async function logout(profile: Profile) {
 async function editProfile(profile: Profile) {
     let name = await vscode.window.showInputBox({prompt: 'Enter profile name', value: profile.name});
     if (name == undefined) return;
-    let domain = await vscode.window.showInputBox({prompt: 'Enter domain', value: profile.domain});
-    if (domain == undefined) return;
     profile.name = name;
-    profile.domain = domain;
     updateProfiles();
 }
 

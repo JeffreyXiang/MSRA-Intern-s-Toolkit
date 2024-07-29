@@ -26,12 +26,13 @@ First of all, as the welcome says, login to Azure with the **Click to login** bu
 * [Submit Jobs](#submit-jobs)
 * [Privileged Identity Management (PIM)](#privileged-identity-management-pim)
 * [GCR Tunnel](#gcr-tunnel)
+* [Quick Command](#quick-command)
 
 ### Multiple Profiles
 
 Under some circumstances, you may need different accounts for different modules. For example, you may need corporation account for GCR tunnel and SC-Alt account for Azure ML. This tool provides a way to login and switch between multiple accounts.
 
-* **Login:** Click the **Click to login** button in the status bar to login. This will show a list of your profiles. Profiles are where your account information is stored. They have an arbitrary name and a domain. Buttons on the right of each profile are for `login`, `logout`, `edit`, `open terminal` and `delete`. Note that, If you want to use `az` command for a specific profile in the terminal, you must open the terminal with the profile.
+* **Login:** Click the **Click to login** button in the status bar to login. This will show a list of your profiles. Profiles are where your account information is stored. They have an arbitrary name. Buttons on the right of each profile are for `login`, `logout`, `edit`, `open terminal` and `delete`. Note that, If you want to use `az` command for a specific profile in the terminal, you must open the terminal with the profile.
 * **Switch:** For each module, you can choose the profile to use. The profile you choose will be used for the module. If you haven't logged in, you will be asked to login first. If you have multiple profiles, you can switch between them by clicking the button on the right of the module name.
 
 ### Submit Jobs
@@ -128,15 +129,22 @@ Only available under local Windows and Mac machine.
 * * Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.
 * * Local port of the tunnel, should be 5 digits start with 2.
 * After the tunnel is successfully added, press **Open** button and wait for the tunnel to open.
-* The tunnel will be opened on `127.0.0.1:yourport` (shown as the second row of tunnel info, below sandbox name). You can directly connect to it using `ssh -p yourport DOMAIN.youralias@127.0.0.1`. But I recommend using VS Code Remote-SSH for productivity. Edit your ssh config and add the following:
+* The tunnel will be opened on `127.0.0.1:yourport` (shown as the second row of tunnel info, below sandbox name). You can directly connect to it using `ssh -p yourport youralias@microsoft.com@127.0.0.1`. But I recommend using VS Code Remote-SSH for productivity. Edit your ssh config and add the following:
 ```
 Host tunnel
     HostName 127.0.0.1
     Port yourport
-    User DOMAIN.youralias
+    User youralias@microsoft.com
     StrictHostKeyChecking=No
     UserKnownHostsFile=\\.\NUL    # or /dev/null for Mac
 ```
+
+### Quick Command
+
+**Quick Command** helps you run some Azure related command quickly. You can use `ctrl+shift+p` to open the command palette and search for `MSRA Intern's Toolkit: Quick Command` to run the command or just open a Azure CLI terminal. The `QuickCmd` button will be shown in the status bar. Click it to run the command. Currently, the following commands are supported:
+
+* **Generate SAS:** Generate a SAS token for a blob container.
+* **Azcopy:** Copy files between local and blob container.
 
 ## Troubleshooting
 

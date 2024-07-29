@@ -249,7 +249,7 @@ function openSSHTunnel(i: number) {
     tunnels[i].state = 'ssh_opening';
     update(i);
     let ignoreHostFile = process.platform == 'win32' ? '\\\\.\\NUL' : '/dev/null';
-    let args = ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${activeProfile.domain}.${activeProfile.alias}@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', `UserKnownHostsFile=${ignoreHostFile}`]
+    let args = ['-N', '-L', `${tunnels[i].sshPort}:127.0.0.1:22`, `${activeProfile.alias}@microsoft.com@127.0.0.1`, '-p', `${tunnels[i].port}`, '-o', 'StrictHostKeyChecking=no', '-o', `UserKnownHostsFile=${ignoreHostFile}`]
     outputChannel.appendLine(`[CMD] > ssh ${args.join(' ')}`);
     let proc = cp.spawn('ssh', args, {detached: true, stdio: 'ignore'});
     proc.unref();
