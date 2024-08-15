@@ -41,6 +41,7 @@ export class EnvironmentConfig {
 export class ExperimentConfig {
     name: string = '';
     job_name: string = '';
+    managed_id: string | undefined = undefined;
     script: string[] = [];
     arg_sweep: string[] = [];
 }
@@ -86,6 +87,7 @@ export class JobConfig {
         if (init.experiment !== undefined) {
             if (init.experiment.name !== undefined) this.experiment.name = init.experiment.name;
             if (init.experiment.job_name !== undefined) this.experiment.job_name = init.experiment.job_name;
+            if (init.experiment.managed_id !== undefined) this.experiment.managed_id = init.experiment.managed_id;
             if (init.experiment.script !== undefined) this.experiment.script = init.experiment.script;
             if (init.experiment.arg_sweep !== undefined) this.experiment.arg_sweep = init.experiment.arg_sweep;
         }
@@ -104,6 +106,7 @@ export class Resource {
     workspaces: azure.ml.Workspace[] = [];
     virtualClusters: azure.ml.VirtualCluster[] = [];
     datastores: azure.ml.Datastore[] = [];
+    managedIdentities: azure.managed_identity.UserAssignedIdentity[] = [];
 
     constructor(init?: any) {
         if (init === undefined) return;
@@ -116,6 +119,9 @@ export class Resource {
         );
         if (init.datastores !== undefined) this.datastores = init.datastores.map(
             (v: any) => azure.ml.Datastore.fromJSON(v)
+        );
+        if (init.managedIdentities !== undefined) this.managedIdentities = init.managedIdentities.map(
+            (v: any) => azure.managed_identity.UserAssignedIdentity.fromJSON(v)
         );
     }
 }
@@ -312,6 +318,7 @@ async function getComputeResources() {
                 res = await Promise.all([
                     azure.ml.getWorkspaces(activeProfile!.azureConfigDir),
                     azure.ml.getVirtualClusters(activeProfile!.azureConfigDir),
+                    azure.managed_identity.getUserAssignedIdentities(activeProfile!.azureConfigDir),
                 ]);
             } catch (err) {
                 showErrorMessageWithHelp(`Failed to get compute resources. ${err}`);
@@ -319,6 +326,7 @@ async function getComputeResources() {
             }
             resource.workspaces = res[0];
             resource.virtualClusters = res[1];
+            resource.managedIdentities = res[2];
             azure.ml.findDefaultWorkspace(resource.workspaces, resource.virtualClusters);
             saveResourceCache();
             return 'success';
@@ -575,11 +583,21 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     let jobPath = `${tempDir}/job.yaml`;
 
     // Create the job spec
+    let envs: {[key: string]: string} = {};
+    if (config.experiment.managed_id) {
+        let managedIdentity = resource.managedIdentities.find((v) => v.name == config.experiment.managed_id);
+        if (!managedIdentity) {
+            showErrorMessageWithHelp(`Failed to submit the job. Managed identity ${config.experiment.managed_id} not found.`);
+            throw 'managed_identity_not_found';
+        }
+        envs['_AZUREML_SINGULARITY_JOB_UAI'] = managedIdentity.id;
+    }
     let jobSpec = azure.ml.job.buildSingulaitySpec(
         config.experiment.job_name,
         config.experiment.name,
         workspacePath(scriptPath),
         command,
+        envs,
         inputs,
         outputs,
         resource.workspaces

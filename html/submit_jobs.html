@@ -401,6 +401,7 @@
             document.getElementById('ignore_dir').value      = config.synchronization.ignore_dir;
             document.getElementById('name').value            = config.experiment.name;
             document.getElementById('job_name').value        = config.experiment.job_name;
+            document.getElementById('managed_id').value      = config.experiment.managed_id || 'Not used';
             document.getElementById('script').value          = config.experiment.script;
             document.getElementById('arg_sweep').value       = config.experiment.arg_sweep;
             delete_all_io();
@@ -688,6 +689,31 @@
             }
         }
 
+        function update_dropdown_managed_id(input) {
+            let dropdown = document.getElementById('dropdown');
+            dropdown.innerHTML = '';
+            let item = document.createElement('div');
+            item.className = 'item';
+            item.innerHTML = '<div class="name">Not used</div>';
+            item.onclick = () => {
+                input.value = 'Not used';
+                config_changed('experiment', 'managed_id', false);
+                hide_dropdown();
+            }
+            dropdown.appendChild(item);
+            for (let i = 0; i < resource.managedIdentities.length; i++) {
+                let item = document.createElement('div');
+                item.className = 'item';
+                item.innerHTML = '<div class="name">' + resource.managedIdentities[i].name + '</div>';
+                item.onclick = () => {
+                    input.value = resource.managedIdentities[i].name;
+                    config_changed('experiment', 'managed_id');
+                    hide_dropdown();
+                }
+                dropdown.appendChild(item);
+            }
+        }
+
         function send_message(data) {
             vscode.postMessage(data);
         }
@@ -770,6 +796,12 @@
                 update_dropdown_sync_target(sync_target_input);
                 show_dropdown(sync_target_input);
             };
+
+            let managed_id_input = document.getElementById('managed_id');
+            managed_id_input.onclick = () => {
+                update_dropdown_managed_id(managed_id_input);
+                show_dropdown(managed_id_input);
+            };
             
             // Hide the dropdown when clicking outside of it
             window.onclick = (event) => {
@@ -847,6 +879,7 @@
         <div id="experiment_group">
             <div class="item"><div class="label">Name:</div><input id="name" type="text" onchange="config_changed('experiment', 'name')"></div>
             <div class="item"><div class="label">Job Name:</div><input id="job_name" type="text" onchange="config_changed('experiment', 'job_name')"></div>
+            <div class="item"><div class="label">Managed ID:</div><input id="managed_id" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
             <div class="item"><div class="label">Script:</div><textarea id="script" type="text" rows="3" onchange="config_changed('experiment', 'script')"></textarea></div>
             <div class="item"><div class="label">Arg Sweep:</div><textarea id="arg_sweep" type="text" rows="1" onchange="config_changed('experiment', 'arg_sweep')"></textarea></div>
             <div id="buttons">

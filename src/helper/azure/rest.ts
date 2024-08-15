@@ -1,7 +1,9 @@
 import * as cp from 'child_process'
 import axios from 'axios'
-import {getAccessToken} from './account'
-import {outputChannel} from '../../extension'
+import { getAccessToken } from './account'
+import { outputChannel } from '../../extension'
+import { uuid4 } from './utils'
+import { promises } from 'fs'
 
 export enum RESTMethod {
     DELETE = 'delete',
@@ -53,12 +55,28 @@ export async function request(method: RESTMethod, uri: string, body?: any, heade
 }
 
 export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUrl: string, content?: any}[], configDir?: string) {
-    let responses = await request(
-        RESTMethod.POST,
-        '/batch?api-version=2020-06-01',
-        {requests: requests},
-        undefined,
-        configDir,
-    );
-    return responses.responses;
+    if (requests.length > 20) { // Azure batch request limit, divide into multiple requests
+        let requestsParts = [];
+        while (requests.length) {
+            requestsParts.push(requests.splice(0, 20));
+        }
+        let responsesParts = await Promise.all(requestsParts.map(async (requestsPart) => {
+            return await batchRequest(requestsPart, configDir);
+        }));
+        let responses: any[] = [];
+        for (let responsesPart of responsesParts) {
+            responses = responses.concat(responsesPart);
+        }
+        return responses;
+    }
+    else {
+        let responses = await request(
+            RESTMethod.POST,
+            '/batch?api-version=2020-06-01',
+            {requests: requests},
+            undefined,
+            configDir,
+        );
+        return responses.responses;
+    }
 }

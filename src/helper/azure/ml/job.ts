@@ -45,6 +45,7 @@ export class Spec{
     experiment_name: string;
     code: string;
     command: string;
+    environment_variables?: object;
     inputs: object;
     outputs: object;
     environment: object;
@@ -53,10 +54,12 @@ export class Spec{
     resources: object;
     identity?: object;
 
-    constructor(display_name: string, experiment_name: string, code: string, command: string, inputs: Input[], outputs: Output[], environment: object, compute: string, distribution: object, resources: object, identity?: object) {        this.display_name = display_name;
+    constructor(display_name: string, experiment_name: string, code: string, command: string, environment_variables: object | undefined, inputs: Input[], outputs: Output[], environment: object, compute: string, distribution: object, resources: object, identity?: object) {        this.display_name = display_name;
         this.experiment_name = experiment_name;
         this.code = code;
         this.command = command;
+        if (environment_variables && Object.keys(environment_variables).length > 0)
+            this.environment_variables = environment_variables;
         this.inputs = new Object();
         this.outputs = new Object();
         this.environment = environment;
@@ -92,6 +95,7 @@ export function buildSingulaitySpec(
     experimentName: string,
     code: string,
     command: string,
+    envs: object,
     inputs: Input[],
     outputs: Output[],
     image: Image,
@@ -108,6 +112,7 @@ export function buildSingulaitySpec(
         experimentName,
         code,
         command,
+        envs,
         inputs,
         outputs,
         {image: 'mcr.microsoft.com/azureml/openmpi3.1.2-ubuntu18.04:20210513.v1'},
