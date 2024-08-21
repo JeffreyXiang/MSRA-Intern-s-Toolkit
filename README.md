@@ -86,6 +86,7 @@ IO zone sets the datastores and paths your job can access. Multiple datastores c
 
 * **Name:** Arbitrary name for your experiment.
 * **Job Name:** Arbitrary name for your job. This will be shown in the job list.
+* **Managed ID:** Managed identity to use. If not set, Singularity will use the SAS workaround to access the datastores, which can only last for 7 days. If set, the job will use the User Assigned Identity (UAI) to access the datastores, which does not have the 7-day limitation. You can find the managed identity in the dropdown list. Don't forget to activate the managed identity in the **PIM** zone.
 * **Scipt:** Script to run. The script will be uploaded to cluster and run. You can use `${{io_name}}` to refer to the IOs and `${{arg_name}}` to refer to the arguments in the **Arg Sweep**.
 * 
     **Arg Sweep:** Arguments to sweep.
