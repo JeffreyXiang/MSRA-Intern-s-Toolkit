@@ -106,6 +106,7 @@ export function buildSingulaitySpec(
     slaTier: string,
     location: string[] | undefined,
     interactive: boolean,
+    sshPublicKey: string | undefined,
     enableAzmlInt: boolean,
 ): Spec{
     return new Spec(
@@ -137,6 +138,7 @@ export function buildSingulaitySpec(
                     imageVersion: image.name,
                     priority: priority,
                     slaTier: slaTier,
+                    sshPublicKey: sshPublicKey,
                     enableAzmlInt: enableAzmlInt,
                     scalePolicy: {
                         autoScaleIntervalInSec: 120,

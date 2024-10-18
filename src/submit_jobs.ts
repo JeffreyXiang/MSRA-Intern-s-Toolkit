@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as parsec from 'typescript-parsec'
-import * as cp from 'child_process';
+import * as fs from 'fs'
+import untildify from 'untildify'
 import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp, deepCopy, randomString} from './utils'
 import {workspacePath, workspaceExists, saveWorkspaceFile, getWorkspaceFile, listWorkspaceFiles, exists, saveFile, getFile} from './helper/file_utils'
@@ -594,6 +595,12 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         }
         envs['_AZUREML_SINGULARITY_JOB_UAI'] = managedIdentity.id;
     }
+    let sshPublicKeyFile = vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<string>('sshPublicKey');
+    let sshPublicKey: string | undefined = undefined;
+    if (sshPublicKeyFile) {
+        sshPublicKeyFile = untildify(sshPublicKeyFile);
+        sshPublicKey = fs.readFileSync(sshPublicKeyFile).toString().trim();
+    }
     let jobSpec = azure.ml.job.buildSingulaitySpec(
         config.experiment.job_name,
         config.experiment.name,
@@ -612,6 +619,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         config.cluster.sla_tier,
         config.cluster.location,
         vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<object>('interactive')![config.cluster.sla_tier as keyof object],
+        sshPublicKey,
         vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<boolean>('enableAzmlInt')!,
     );
     

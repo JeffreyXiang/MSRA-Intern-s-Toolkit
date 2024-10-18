@@ -3,7 +3,7 @@
 	"displayName": "MSRA Intern's Toolkit",
 	"description": "",
 	"icon": "color-icon.png",
-	"version": "2.2.2-nightly.20241018",
+	"version": "2.2.2",
 	"publisher": "jianfeng-xiang",
 	"author": {
 		"name": "Jianfeng Xiang",
@@ -119,6 +119,11 @@
 						"Basic": false
 					},
 					"description": "Whether to enable the interactive mode for each type of job."
+				},
+				"msra_intern_s_toolkit.submitJobs.sshPublicKey": {
+					"type": "string",
+					"default": "~/.ssh/id_rsa.pub",
+					"description": "The SSH public key to be used for submitting jobs. This is required if you want to connect to the job via VS Code's SSH extension."
 				},
 				"msra_intern_s_toolkit.submitJobs.enableAzmlInt": {
 					"type": "boolean",
@@ -266,6 +271,7 @@
 	"dependencies": {
 		"axios": "^1.7.2",
 		"typescript-parsec": "^0.3.4",
+		"untildify": "^5.0.0",
 		"yaml": "^2.4.5"
 	}
 }
