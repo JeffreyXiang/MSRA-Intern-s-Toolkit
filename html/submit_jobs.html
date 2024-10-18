@@ -96,6 +96,14 @@
             background: rgb(128, 128, 128, 0.3);
         }
 
+        #dropdown .item.checked {
+            background: var(--vscode-button-background);
+        }
+
+        #dropdown .item.checked:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
         #dropdown .item .name {
             width: 100%;
             overflow: hidden;
@@ -396,6 +404,7 @@
             document.getElementById('instance_type').value   = config.cluster.instance_type;
             document.getElementById('node_count').value      = config.cluster.node_count.toString();
             document.getElementById('sla_tier').value        = config.cluster.sla_tier;
+            document.getElementById('location').value        = config.cluster.location ? config.cluster.location.join(',') : 'Default';
             document.getElementById('image').value           = config.environment.image;
             document.getElementById('sync_target').value     = config.synchronization.target;
             document.getElementById('ignore_dir').value      = config.synchronization.ignore_dir;
@@ -572,6 +581,89 @@
                 hide_dropdown();
             }
             dropdown.appendChild(item);
+        }
+
+        function update_dropdown_location(input) {
+            let dropdown = document.getElementById('dropdown');
+            dropdown.innerHTML = '';
+            let selected = document.getElementById('virtual_cluster').value;
+            let virtualCluster = resource.virtualClusters.find((item) => item.name == selected);
+            let locations = virtualCluster.locations;
+            let selectedLocations = input.value == 'Default' ? [] : input.value.split(',');
+
+            let selectAll = document.createElement('div');
+            selectAll.className = 'item';
+            selectAll.innerHTML = '<div class="name">(Select All)</div>';
+            if (selectedLocations.length == locations.length) {
+                selectAll.classList.add('checked');
+            }
+            dropdown.appendChild(selectAll);
+
+            let items = [];
+            for (let i = 0; i < locations.length; i++) {
+                let item = document.createElement('div');
+                item.className = 'item';
+                item.title = locations[i];
+                item.innerHTML = '<div class="name">' + locations[i] + '</div>';
+                if (selectedLocations.includes(locations[i])) {
+                    item.classList.add('checked');
+                }
+                dropdown.appendChild(item);
+                items.push(item);
+            }
+            if (locations.length == 0) {
+                let prompt = document.createElement('div');
+                prompt.style.color = 'gray';
+                prompt.style.textAlign = 'center';
+                prompt.style.margin = '5px';
+                prompt.innerHTML = 'No location available.';
+                dropdown.appendChild(prompt);
+            }
+
+            // Register events for items
+            for (let item of items) {
+                item.onclick = () => {
+                    if (item.classList.contains('checked')) {
+                        item.classList.remove('checked');
+                        selectAll.classList.remove('checked');
+                        selectedLocations = selectedLocations.filter((loc) => loc != item.title);
+                    }
+                    else {
+                        item.classList.add('checked');
+                        selectedLocations.push(item.title);
+                        if (selectedLocations.length == locations.length) {
+                            selectAll.classList.add('checked');
+                        }
+                    }
+                    if (selectedLocations.length == 0) {
+                        input.value = 'Default';
+                        config_changed('cluster', 'location', undefined);
+                    }
+                    else {
+                        input.value = selectedLocations.join(',');
+                        config_changed('cluster', 'location', selectedLocations);
+                    }
+                }
+            }
+
+            selectAll.onclick = () => {
+                if (selectAll.classList.contains('checked')) {
+                    selectAll.classList.remove('checked');
+                    for (let item of items) {
+                        item.classList.remove('checked');
+                    }
+                    input.value = 'Default';
+                    config_changed('cluster', 'location', undefined);
+                }
+                else {
+                    selectAll.classList.add('checked');
+                    for (let item of items) {
+                        item.classList.add('checked');
+                    }
+                    input.value = locations.join(',');
+                    config_changed('cluster', 'location', locations);
+                }
+            }
         }
 
         function update_dropdown_image(input) {
@@ -785,6 +877,12 @@
                 show_dropdown(sla_tier_input);
             };
 
+            let location_input = document.getElementById('location');
+            location_input.onclick = () => {
+                update_dropdown_location(location_input);
+                show_dropdown(location_input);
+            };
+
             let image_input = document.getElementById('image');
             image_input.onclick = () => {
                 update_dropdown_image(image_input);
@@ -832,6 +930,7 @@
             <div class="item"><div class="label">Instance Type:</div><input id="instance_type" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
             <div class="item"><div class="label">Node Count:</div><input id="node_count" type="number" min="1" max="4" step="1" onchange="config_changed('cluster', 'node_count')"></div>
             <div class="item"><div class="label">SLA Tier:</div><input id="sla_tier" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
+            <div class="item"><div class="label">Location:</div><input id="location" class="with_dropdown" type="text"><i class="codicon codicon-chevron-down"></i></div>
         </div>
         <div id="no_resource_prompt" style="color: gray; text-align: center;">No available resource.</div>
         <div class="groupbar">

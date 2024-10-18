@@ -104,6 +104,7 @@ export function buildSingulaitySpec(
     nodeCount: number,
     priority: string,
     slaTier: string,
+    location: string[] | undefined,
     interactive: boolean,
     enableAzmlInt: boolean,
 ): Spec{
@@ -129,6 +130,7 @@ export function buildSingulaitySpec(
         {
             instance_type: `Singularity.${instanceType}`,
             instance_count: nodeCount,
+            locations: location,
             properties: {
                 AISuperComputer: {
                     interactive: interactive,

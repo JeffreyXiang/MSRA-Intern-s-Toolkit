@@ -1,5 +1,3 @@
-import * as cp from 'child_process'
-import {outputChannel} from '../../../extension'
 import { BlobContainer } from '../storage';
 import * as rest from '../rest';
 
@@ -56,19 +54,21 @@ export class VirtualCluster {
     resourceGroup: string;
     name: string;
     location: string;
+    locations: string[] = [];
     instanceSeries: InstanceSeries[] = [];
     defaultWorkspace: Workspace | undefined = undefined;
 
-    constructor(id: string, subscriptionId: string, resourceGroup: string, name: string, location: string) {
+    constructor(id: string, subscriptionId: string, resourceGroup: string, name: string, location: string, locations: string[] = []) {
         this.id = id;
         this.subscriptionId = subscriptionId;
         this.resourceGroup = resourceGroup;
         this.name = name;
         this.location = location;
+        if (locations != null) this.locations = locations;
     }
 
     static fromJSON(obj: any) {
-        let vc = new VirtualCluster(obj.id, obj.subscriptionId, obj.resourceGroup, obj.name, obj.location);
+        let vc = new VirtualCluster(obj.id, obj.subscriptionId, obj.resourceGroup, obj.name, obj.location, obj.locations);
         vc.instanceSeries = obj.instanceSeries.map((instanceSeries: any) => InstanceSeries.fromJSON(instanceSeries));
         if (obj.defaultWorkspace) vc.defaultWorkspace = Workspace.fromJSON(obj.defaultWorkspace);
         return vc;
@@ -178,7 +178,7 @@ export async function getVirtualClusters(configDir?: string) {
     );
     let virtualClusters: VirtualCluster[] = [];
     for (let vc of response.data) {
-        let newVC = new VirtualCluster(vc.id, vc.subscriptionId, vc.resourceGroup, vc.name, vc.location);
+        let newVC = new VirtualCluster(vc.id, vc.subscriptionId, vc.resourceGroup, vc.name, vc.location, vc.properties.managed.locations);
         let instanceSeriesMap = new Map<string, InstanceSeries>();
         for (let limit of vc.properties.managed.defaultGroupPolicyOverallQuotas.limits) {
             if (!instanceSeriesMap.has(limit.id)) {
@@ -194,8 +194,8 @@ export async function getVirtualClusters(configDir?: string) {
                     instanceSeriesMap.set(limit.id, new InstanceSeries(limit.id, limit.name));
                 }
                 let series = instanceSeriesMap.get(limit.id)!;
-                series.quota[limit.slaTier as keyof Quota].limit = limit.limit;
-                series.quota[limit.slaTier as keyof Quota].used = limit.used;
+                series.quota[limit.slaTier as keyof Quota].limit += limit.limit;
+                series.quota[limit.slaTier as keyof Quota].used += limit.used;
             }
         }
         newVC.instanceSeries = Array.from(instanceSeriesMap.values());

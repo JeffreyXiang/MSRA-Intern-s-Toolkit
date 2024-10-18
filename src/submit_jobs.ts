@@ -13,6 +13,7 @@ class ClusterConfig {
     instance_type: string = '';
     node_count: number = 1;
     sla_tier: string = 'Basic';
+    location: string[] | undefined = undefined;
 }
 
 export enum IOMode {
@@ -62,6 +63,7 @@ export class JobConfig {
             if (init.cluster.instance_type !== undefined) this.cluster.instance_type = init.cluster.instance_type;
             if (init.cluster.node_count !== undefined) this.cluster.node_count = init.cluster.node_count;
             if (init.cluster.sla_tier !== undefined) this.cluster.sla_tier = init.cluster.sla_tier;
+            if (init.cluster.location !== undefined) this.cluster.location = init.cluster.location;
         }
 
         if (init.io !== undefined) {
@@ -608,6 +610,7 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         config.cluster.node_count,
         vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<string>('priority')!,
         config.cluster.sla_tier,
+        config.cluster.location,
         vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<object>('interactive')![config.cluster.sla_tier as keyof object],
         vscode.workspace.getConfiguration('msra_intern_s_toolkit.submitJobs').get<boolean>('enableAzmlInt')!,
     );

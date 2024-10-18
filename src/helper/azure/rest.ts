@@ -23,6 +23,10 @@ export async function request(method: RESTMethod, uri: string, body?: any, heade
     if (!headers.hasOwnProperty('Content-Type')) {
         headers['Content-Type'] = 'application/json';
     }
+    // Add a unique identifier to the request
+    if (!headers.hasOwnProperty('x-ms-client-request-id')) {
+        headers['x-ms-client-request-id'] = uuid4();
+    }
     outputChannel.appendLine(`[REST] > ${method.toUpperCase()} ${uri} ${JSON.stringify(body)} ${JSON.stringify(headers)}`);
     try {
         let response = await axios.request({
