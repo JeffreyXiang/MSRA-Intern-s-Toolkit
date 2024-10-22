@@ -599,7 +599,9 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
     let sshPublicKey: string | undefined = undefined;
     if (sshPublicKeyFile) {
         sshPublicKeyFile = untildify(sshPublicKeyFile);
-        sshPublicKey = fs.readFileSync(sshPublicKeyFile).toString().trim();
+        if (fs.existsSync(sshPublicKeyFile)) {
+            sshPublicKey = fs.readFileSync(sshPublicKeyFile).toString().trim();
+        }
     }
     let jobSpec = azure.ml.job.buildSingulaitySpec(
         config.experiment.job_name,
