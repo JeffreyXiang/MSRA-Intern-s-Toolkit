@@ -133,6 +133,7 @@ var config: JobConfig = new JobConfig();
 var resource: Resource = new Resource();
 
 import {SubmitJobsView} from './ui/submit_jobs'
+import { AcrImage } from './helper/azure/ml';
 export var ui: SubmitJobsView;
 export var activeProfile: profile.Profile | undefined = undefined;
 
@@ -603,6 +604,11 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
             sshPublicKey = fs.readFileSync(sshPublicKeyFile).toString().trim();
         }
     }
+    let usingAcrImage = config.environment.image.includes('azurecr.io');
+    let image = usingAcrImage ? undefined : resource.workspaces
+            .find((v) => v.name == config.cluster.workspace)!.images
+            .find((v) => v.name == config.environment.image)!;
+    let acrImage = usingAcrImage ? AcrImage.fromString(config.environment.image) : undefined;
     let jobSpec = azure.ml.job.buildSingulaitySpec(
         config.experiment.job_name,
         config.experiment.name,
@@ -611,9 +617,8 @@ export async function submitToAML(config: JobConfig, progress?: (increment: numb
         envs,
         inputs,
         outputs,
-        resource.workspaces
-            .find((v) => v.name == config.cluster.workspace)!.images
-            .find((v) => v.name == config.environment.image)!,
+        image,
+        acrImage,
         resource.virtualClusters.find((v) => v.name == config.cluster.virtual_cluster)!,
         config.cluster.instance_type,
         config.cluster.node_count,
@@ -705,7 +710,10 @@ export async function submit() {
             }
             if (resource.workspaces
                     .find((v) => v.name == cfg.cluster.workspace)!.images
-                    .find((v) => v.name == cfg.environment.image) === undefined) {
+                    .find((v) => v.name == cfg.environment.image) === undefined &&
+                resource.workspaces
+                    .find((v) => v.name == cfg.cluster.workspace)!.acrImages
+                    .find((v) => v.toString() == config.environment.image) === undefined) {
                 showErrorMessageWithHelp(`Failed to submit the job. Image ${cfg.environment.image} not found.`);
                 throw 'failed_to_find_image';
             }

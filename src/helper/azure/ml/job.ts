@@ -1,6 +1,6 @@
 import * as cp from 'child_process'
 import * as YAML from 'yaml'
-import {VirtualCluster, Workspace, Image} from './resource'
+import {VirtualCluster, Workspace, Image, AcrImage} from './resource'
 import {outputChannel} from '../../../extension'
 import {parseJson} from '../utils'
 
@@ -98,7 +98,8 @@ export function buildSingulaitySpec(
     envs: object,
     inputs: Input[],
     outputs: Output[],
-    image: Image,
+    image: Image | undefined,
+    acrImage: AcrImage | undefined,
     virtualCluster: VirtualCluster,
     instanceType: string,
     nodeCount: number,
@@ -115,7 +116,7 @@ export function buildSingulaitySpec(
         properties: {
             AISuperComputer: {
                 interactive: interactive,
-                imageVersion: image.name,
+                imageVersion: image? image.name : undefined,
                 priority: priority,
                 slaTier: slaTier,
                 sshPublicKey: sshPublicKey,
@@ -139,7 +140,7 @@ export function buildSingulaitySpec(
         envs,
         inputs,
         outputs,
-        {image: 'mcr.microsoft.com/azureml/openmpi3.1.2-ubuntu18.04:20210513.v1'},
+        {image: acrImage ? acrImage.toString() : 'mcr.microsoft.com/azureml/openmpi3.1.2-ubuntu18.04:20210513.v1'},
         [
             `/subscriptions/${virtualCluster.subscriptionId}`,
             `/resourceGroups/${virtualCluster.resourceGroup}`,

@@ -4,7 +4,6 @@ import {vscodeContext, outputChannel} from './extension'
 import {showErrorMessageWithHelp, uuid4} from './utils'
 import {getFile, saveFile, exists, globalPath} from './helper/file_utils'
 import * as submitJobs from './submit_jobs'
-import * as gcrTunnel from './gcr_tunnel'
 import * as pim from './pim'
 import * as azure from './helper/azure'
 
@@ -31,8 +30,8 @@ var azureStatusBar: vscode.StatusBarItem;
 export var profiles: Profile[] = [];
 var activeProfileId: { [module: string]: string | undefined } = {};
 
-const MODULES = [submitJobs, gcrTunnel, pim];
-const MODULE_NAMES = ['submitJobs', 'gcrTunnel', 'pim'];
+const MODULES = [submitJobs, pim];
+const MODULE_NAMES = ['submitJobs', 'pim'];
 
 
 function saveProfileCache() {
@@ -45,7 +44,6 @@ function saveProfileCache() {
             };
         }),
         activeProfile: {
-            'gcrTunnel': gcrTunnel.activeProfile ? gcrTunnel.activeProfile.id : undefined,
             'pim': pim.activeProfile ? pim.activeProfile.id : undefined,
             'submitJobs': submitJobs.activeProfile ? submitJobs.activeProfile.id : undefined,
         }
@@ -388,7 +386,6 @@ export function init() {
     checkProfiles();
 
     vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.manageProfiles', manageProfiles));
-    vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.setGCRTunnelProfile', () => setProfile(gcrTunnel, 'gcrTunnel')));
     vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.setPIMProfile', () => setProfile(pim, 'pim')));
     vscodeContext.subscriptions.push(vscode.commands.registerCommand('msra_intern_s_toolkit.setSubmitJobsProfile', () => setProfile(submitJobs, 'submitJobs')));
 

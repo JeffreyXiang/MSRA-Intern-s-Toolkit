@@ -18,7 +18,6 @@ export class PIMView implements vscode.WebviewViewProvider {
         webviewView.webview.html = this.html
             .replace('${{codicon_css_uri}}', codiconsUri.toString());
         webviewView.webview.onDidReceiveMessage((message: any) => {
-            // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Receive ' + JSON.stringify(message));
             switch (message.command) {
                 case 'getContent':
                     pim.refreshUI();
@@ -37,7 +36,6 @@ export class PIMView implements vscode.WebviewViewProvider {
                     break;
             }
         });
-        // console.log('msra_intern_s_toolkit.ui.GCRTunnelView: Webview resolved');
     }
 
     public setContent(params: pim.uiParams) {

@@ -1,6 +1,6 @@
 # MSRA Intern's Toolkit
 
-MSRA Intern's Toolkit is a VS Code extension for research interns in MSRA (Microsoft Research Asia) to simplify some of the troublesome but frequently used process including submitting jobs to clusters, privileged identity management (PIM) for Azure, opening tunnels to GCR sandboxes, etc.
+MSRA Intern's Toolkit is a VS Code extension for research interns in MSRA (Microsoft Research Asia) to simplify some of the troublesome but frequently used process including submitting jobs to clusters, privileged identity management (PIM) for Azure, etc.
 
 This extension provide you a intuitive and interactive way to deal with these annoying process. Just get rid of those scripts that nobody can remember and embrace this convinient user interface.
 
@@ -13,8 +13,6 @@ This extension provide you a intuitive and interactive way to deal with these an
 * Install Azure CLI with latest version. see [Install the Azure CLI | Microsoft Learn](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
   * You can check your Azure CLI version with: `az version --output table`.
 * Install the Azure CLI Machine Learning extension: `az extension add --name ml`.
-* Install the Azure CLI Bastion extension: `az extension add --name bastion`.
-* To use GCR tunnels, make sure OpenSSH is installed. Learn how to install it from [Get started with OpenSSH for Windows | Microsoft Learn](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse?tabs=gui).
 
 ## Usage
 
@@ -22,15 +20,22 @@ First of all, as the welcome says, login to Azure with the **Click to login** bu
 
 **Quick Jump:**
 
-* [Multiple Profiles](#multiple-profiles)
-* [Submit Jobs](#submit-jobs)
-* [Privileged Identity Management (PIM)](#privileged-identity-management-pim)
-* [GCR Tunnel](#gcr-tunnel)
-* [Quick Command](#quick-command)
+- [MSRA Intern's Toolkit](#msra-interns-toolkit)
+  - [Screenshots](#screenshots)
+  - [Requirements](#requirements)
+  - [Usage](#usage)
+    - [Multiple Profiles](#multiple-profiles)
+    - [Submit Jobs](#submit-jobs)
+      - [About the submission config:](#about-the-submission-config)
+    - [Privileged Identity Management (PIM)](#privileged-identity-management-pim)
+    - [Quick Command](#quick-command)
+  - [Troubleshooting](#troubleshooting)
+    - [Submit Jobs](#submit-jobs-1)
+  - [For more information](#for-more-information)
 
 ### Multiple Profiles
 
-Under some circumstances, you may need different accounts for different modules. For example, you may need corporation account for GCR tunnel and SC-Alt account for Azure ML. This tool provides a way to login and switch between multiple accounts.
+Under some circumstances, you may need different accounts for different modules. This tool provides a way to login and switch between multiple accounts.
 
 * **Login:** Click the **Click to login** button in the status bar to login. This will show a list of your profiles. Profiles are where your account information is stored. They have an arbitrary name. Buttons on the right of each profile are for `login`, `logout`, `edit`, `open terminal` and `delete`. Note that, If you want to use `az` command for a specific profile in the terminal, you must open the terminal with the profile.
 * **Switch:** For each module, you can choose the profile to use. The profile you choose will be used for the module. If you haven't logged in, you will be asked to login first. If you have multiple profiles, you can switch between them by clicking the button on the right of the module name.
@@ -121,24 +126,7 @@ For security reasons, you may need to use a privileged identity to access some r
 * Press **Activate** button to activate a role.
 * Press **Deactivate** button to deactivate a role.
 * To keep the identity alive, check the **Watch** icon on the right of the role. The tool will automatically reactivate the role when it expires.
-  
-### GCR Tunnel
 
-Only available under local Windows and Mac machine.
-* Press **Add** button to setup a new tunnel.
-* Input sandbox ID and port as guided. Note that:
-* * Sandbox ID is the last 4 digits of the GCRAZGDL#### host you wish to connect to.
-* * Local port of the tunnel, should be 5 digits start with 2.
-* After the tunnel is successfully added, press **Open** button and wait for the tunnel to open.
-* The tunnel will be opened on `127.0.0.1:yourport` (shown as the second row of tunnel info, below sandbox name). You can directly connect to it using `ssh -p yourport youralias@microsoft.com@127.0.0.1`. But I recommend using VS Code Remote-SSH for productivity. Edit your ssh config and add the following:
-```
-Host tunnel
-    HostName 127.0.0.1
-    Port yourport
-    User youralias@microsoft.com
-    StrictHostKeyChecking=No
-    UserKnownHostsFile=\\.\NUL    # or /dev/null for Mac
-```
 
 ### Quick Command
 
@@ -167,15 +155,6 @@ Host tunnel
 
 * Make sure you have the permission to access the working directory.
 
-### GCR Tunnel
-
-**Azure Bastion extension not installed.**
-
-* Install the Azure CLI Bastion extension: `az extension add --name bastion`.
-
-**SSH tunnel failed.**
-
-* A possible reason is the bad owner or permissions on `.ssh/config` file. Make sure this file is owned by your alias account and no others are permitted to access. Inherit should be disabled. 
 
 ## For more information
 

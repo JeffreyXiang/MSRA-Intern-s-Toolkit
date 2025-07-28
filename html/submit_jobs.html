@@ -52,7 +52,7 @@
             align-items: flex-start;
         }
 
-        #dropdown .title .info .name {
+        #dropdown .title .name {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -61,7 +61,7 @@
             font-weight: 700;
         }
 
-        #dropdown .title .info .desc {
+        #dropdown .title .desc {
             width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -110,7 +110,7 @@
             text-overflow: ellipsis;
             color: var(--vscode-editor-foreground);
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 500;
         }
 
         #dropdown .item .desc {
@@ -305,6 +305,16 @@
 
         div.button:hover {
             background: var(--vscode-button-hoverBackground);
+        }
+
+        div.button.disabled {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            cursor: default;
+        }
+
+        div.button.disabled:hover {
+            background: var(--vscode-button-secondaryBackground);
         }
     </style>
     <script>
@@ -671,27 +681,106 @@
             dropdown.innerHTML = '';
             let seleted_ws = document.getElementById('workspace').value;
             seleted_ws = resource.workspaces.find((item) => item.name == seleted_ws);
+
+            let manageBar = document.createElement('div');
+            manageBar.style.display = 'flex';
+            dropdown.appendChild(manageBar);
+
+            let builtInButton = document.createElement('div');
+            builtInButton.className = 'button';
+            builtInButton.innerHTML = 'Built-in';
+            manageBar.appendChild(builtInButton);
+            let acrButton = document.createElement('div');
+            acrButton.className = 'button';
+            acrButton.innerHTML = 'ACR';
+            manageBar.appendChild(acrButton);
+
+            // Show image page
             let images = seleted_ws.images;
-            for (let i = 0; i < images.length; i++) {
-                let item = document.createElement('div');
-                item.className = 'item';
-                item.title = images[i].description;
-                item.innerHTML = '<div class="name">' + images[i].name + '</div><div class="desc">' + images[i].description + '</div>';
-                item.onclick = () => {
-                    input.value = images[i].name;
-                    config_changed('environment', 'image');
-                    hide_dropdown();
+            let builtInPage = document.createElement('div');
+            if (images.length != 0) {
+                for (let i = 0; i < images.length; i++) {
+                    let item = document.createElement('div');
+                    item.className = 'item';
+                    item.title = images[i].description;
+                    item.innerHTML = '<div class="name">' + images[i].name + '</div><div class="desc">' + images[i].description + '</div>';
+                    item.onclick = () => {
+                        input.value = images[i].name;
+                        config_changed('environment', 'image');
+                        hide_dropdown();
+                    }
+                    builtInPage.appendChild(item);
                 }
-                dropdown.appendChild(item);
-            }
-            if (images.length == 0) {
+            } else {
                 let prompt = document.createElement('div');
                 prompt.style.color = 'gray';
                 prompt.style.textAlign = 'center';
                 prompt.style.margin = '5px';
                 prompt.innerHTML = 'No image available.';
-                dropdown.appendChild(prompt);
+                builtInPage.appendChild(prompt);
             }
+
+            // Show ACR image page
+            let acrImages = seleted_ws.acrImages;
+            let acrPage = document.createElement('div');
+            if (acrImages.length != 0) {
+                // group by repository
+                let loginServer = acrImages[0].loginServer;
+                let repositories = new Map();
+                for (let i = 0; i < acrImages.length; i++) {
+                    if (repositories.has(acrImages[i].repository)) {
+                        repositories.get(acrImages[i].repository).push(acrImages[i].tag);
+                    } else {
+                        repositories.set(acrImages[i].repository, [acrImages[i].tag]);
+                    }
+                }
+                for (let [repository, tags] of repositories) {
+                    let item = document.createElement('div');
+                    item.className = 'title';
+                    item.innerHTML = `<div class="name">${repository.toUpperCase()}</div>`;
+                    item.title = `${loginServer}/${repository}`;
+                    acrPage.appendChild(item);
+                    for (let i = 0; i < tags.length; i++) {
+                        let item = document.createElement('div');
+                        item.className = 'item';
+                        item.innerHTML = `<div class="name">${tags[i]}</div>`;
+                        item.title = `${loginServer}/${repository}:${tags[i]}`;
+                        item.onclick = () => {
+                            input.value = `${loginServer}/${repository}:${tags[i]}`;
+                            config_changed('environment', 'image');
+                            hide_dropdown();
+                        }
+                        acrPage.appendChild(item);
+                    }
+                }
+            } else {
+                let prompt = document.createElement('div');
+                prompt.style.color = 'gray';
+                prompt.style.textAlign = 'center';
+                prompt.style.margin = '5px';
+                prompt.innerHTML = 'No ACR image available.';
+                acrPage.appendChild(prompt);
+            }
+
+            if (document.getElementById('image').value.includes('azurecr.io')) {
+                dropdown.appendChild(acrPage);
+                acrButton.classList.add('disabled');
+            } else {
+                dropdown.appendChild(builtInPage);
+                builtInButton.classList.add('disabled');
+            }
+
+            // Register events for buttons
+            builtInButton.onclick = () => {
+                builtInButton.classList.add('disabled');
+                acrButton.classList.remove('disabled');
+                dropdown.replaceChild(builtInPage, acrPage);
+            };
+            acrButton.onclick = () => {
+                builtInButton.classList.remove('disabled');
+                acrButton.classList.add('disabled');
+                dropdown.replaceChild(acrPage, builtInPage);
+            };
         }
 
         function update_dropdown_sync_target(input) {

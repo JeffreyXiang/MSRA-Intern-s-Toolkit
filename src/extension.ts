@@ -3,7 +3,6 @@
 import * as vscode from 'vscode';
 import * as profile from './profile';
 import * as job from './submit_jobs';
-import * as gcr from './gcr_tunnel';
 import * as pim from './pim';
 import * as quickcmd from './quickcmd';
 
@@ -24,7 +23,6 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.executeCommand('setContext', 'msra_intern_s_toolkit.isStarted', true);
 		profile.init();
 		job.init();
-		gcr.init();
 		pim.init();
 		quickcmd.init();
 	}));

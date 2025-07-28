@@ -1,5 +1,8 @@
+import * as cp from 'child_process'
+import { outputChannel } from '../../../extension'
 import { BlobContainer } from '../storage';
 import * as rest from '../rest';
+import { parseJson } from '../utils';
 
 export class InstanceType {
     name: string;
@@ -82,23 +85,68 @@ export class Workspace {
     subscriptionId: string;
     resourceGroup: string;
     location: string = '';
+    containerRegistry: ContainerRegistry;
     images: Image[] = [];
+    acrImages: AcrImage[] = [];
 
-    constructor(id: string, name: string, subscriptionId: string, resourceGroup: string, location: string, images: Image[] = []) {
+    constructor(id: string, name: string, subscriptionId: string, resourceGroup: string, location: string, containerRegistry: ContainerRegistry, images: Image[] = [], acrImages: AcrImage[] = []) {
         this.id = id;
         this.name = name;
         this.subscriptionId = subscriptionId;
         this.resourceGroup = resourceGroup;
         this.location = location;
+        this.containerRegistry = containerRegistry;
         this.images = images;
+        this.acrImages = acrImages;
     }
 
     static fromJSON(obj: any) {
-        let new_ws = new Workspace(obj.id, obj.name, obj.subscriptionId, obj.resourceGroup, obj.location);
+        let new_ws = new Workspace(obj.id, obj.name, obj.subscriptionId, obj.resourceGroup, obj.location, obj.containerRegistry);
         if (obj.hasOwnProperty('images')) {
             new_ws.images = obj.images.map((image: any) => Image.fromJSON(image));
         }
+        if (obj.hasOwnProperty('acrImages')) {
+            new_ws.acrImages = obj.acrImages.map((acrImage: any) => AcrImage.fromJSON(acrImage));
+        }
         return new_ws;
+    }
+}
+
+export class ContainerRegistry {
+    name: string;
+    subscriptionId: string;
+    resourceGroup: string;
+
+    constructor(name: string, subscriptionId: string, resourceGroup: string) {
+        this.name = name;
+        this.subscriptionId = subscriptionId;
+        this.resourceGroup = resourceGroup;
+    }
+
+    static fromJSON(obj: any) {
+        return new ContainerRegistry(obj.name, obj.subscriptionId, obj.resourceGroup);
+    }
+
+    static fromString(str: string): ContainerRegistry {
+        // "/subscriptions/<sub-id>/resourceGroups/<rg-name>/providers/Microsoft.ContainerRegistry/registries/<acr-name>"
+        const parts = str.split('/');
+
+        if (
+            parts.length < 9 ||
+            parts[1] !== 'subscriptions' ||
+            parts[3] !== 'resourceGroups' ||
+            parts[5] !== 'providers' ||
+            parts[6] !== 'Microsoft.ContainerRegistry' ||
+            parts[7] !== 'registries'
+        ) {
+            throw new Error(`Invalid ACR resource ID format: ${str}`);
+        }
+
+        const subscriptionId = parts[2];
+        const resourceGroup = parts[4];
+        const name = parts[8];
+
+        return new ContainerRegistry(name, subscriptionId, resourceGroup);
     }
 }
 
@@ -113,6 +161,39 @@ export class Image {
 
     static fromJSON(obj: any) {
         return new Image(obj.name, obj.description);
+    }
+}
+
+export class AcrImage {
+    loginServer: string;
+    repository: string;
+    tag: string;
+
+    constructor(loginServer: string, repository: string, tag: string) {
+        this.loginServer = loginServer;
+        this.repository = repository;
+        this.tag = tag;
+    }
+
+    static fromJSON(obj: any) {
+        return new AcrImage(obj.loginServer, obj.repository, obj.tag);
+    }
+
+    static fromString(str: string) {
+        let firstSlash = str.indexOf('/');
+        let lastColon = str.lastIndexOf(':');
+        if (firstSlash === -1 || lastColon === -1 || lastColon < firstSlash) {
+            throw new Error(`Invalid ACR image string: ${str}`);
+        }
+        let loginServer = str.substring(0, firstSlash);
+        let repository = str.substring(firstSlash + 1, lastColon);
+        let tag = str.substring(lastColon + 1);
+
+        return new AcrImage(loginServer, repository, tag);
+    }
+
+    toString() {
+        return `${this.loginServer}/${this.repository}:${this.tag}`;
     }
 }
 
@@ -152,14 +233,19 @@ export async function getWorkspaces(configDir?: string) {
     );
     let workspaces: Workspace[] = [];
     for (let ws of response.data) {
-        workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup, ws.location));
+        workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup, ws.location, ContainerRegistry.fromString(ws.properties.containerRegistry)));
     }
 
     // Get images
-    let requests = workspaces.map((ws) => getImages(ws, configDir));
-    let responses = await Promise.all(requests);
-    for (let i = 0; i < responses.length; i++) {
-        workspaces[i].images = responses[i];
+    let images = await Promise.all(workspaces.map((ws) => getImages(ws, configDir)));
+    for (let i = 0; i < images.length; i++) {
+        workspaces[i].images = images[i];
+    }
+
+    // Get acr images
+    let acrImages = await Promise.all(workspaces.map((ws) => getAcrImages(ws, configDir)));
+    for (let i = 0; i < acrImages.length; i++) {
+        workspaces[i].acrImages = acrImages[i];
     }
     
     console.log('msra_intern_s_toolkit.helper.azureml.getWorkspaces: Found ' + workspaces.length + ' workspaces');
@@ -250,6 +336,34 @@ export async function getImages(workspace: Workspace, configDir?: string) {
     console.log(images);
     return images;
 }
+
+
+export async function getAcrImages(workspace: Workspace, configDir?: string) {
+    let env = process.env;
+    if (configDir) {
+        env['AZURE_CONFIG_DIR'] = configDir;
+    }
+    let cr = workspace.containerRegistry;
+    outputChannel.appendLine(`[CMD] > az acr repository list --name ${cr.name} --subscription ${cr.subscriptionId}`);
+    let response = cp.execSync(`az acr repository list --name ${cr.name} --subscription ${cr.subscriptionId}`, {env: env}).toString();
+    let repositories = parseJson(response);
+    let tags = await Promise.all(repositories.map(async (repository: any) => {
+        outputChannel.appendLine(`[CMD] > az acr repository show-tags --name ${cr.name} --repository ${repository} --subscription ${cr.subscriptionId}`);
+        let response = cp.execSync(`az acr repository show-tags --name ${cr.name} --repository ${repository} --subscription ${cr.subscriptionId}`, {env: env}).toString();
+        return parseJson(response);
+    }));
+    let acrImages: AcrImage[] = [];
+    let loginServer = `${cr.name}.azurecr.io`;
+    for (let i = 0; i < repositories.length; i++) {
+        for (let tag of tags[i]) {
+            acrImages.push(new AcrImage(loginServer, repositories[i], tag));
+        }
+    }
+    console.log('msra_intern_s_toolkit.helper.azureml.getAcrImages: Found ' + acrImages.length + ' acr images');
+    console.log(acrImages);
+    return acrImages;
+}
+
 
 export function findDefaultWorkspace(workspaces: Workspace[], virtualClusters: VirtualCluster[]) {
     let subRg2ws = new Map<string, Workspace>();
