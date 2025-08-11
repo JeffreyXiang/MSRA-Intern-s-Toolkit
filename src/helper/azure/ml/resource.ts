@@ -85,11 +85,11 @@ export class Workspace {
     subscriptionId: string;
     resourceGroup: string;
     location: string = '';
-    containerRegistry: ContainerRegistry;
+    containerRegistry: ContainerRegistry | undefined = undefined;
     images: Image[] = [];
     acrImages: AcrImage[] = [];
 
-    constructor(id: string, name: string, subscriptionId: string, resourceGroup: string, location: string, containerRegistry: ContainerRegistry, images: Image[] = [], acrImages: AcrImage[] = []) {
+    constructor(id: string, name: string, subscriptionId: string, resourceGroup: string, location: string, containerRegistry: ContainerRegistry | undefined = undefined, images: Image[] = [], acrImages: AcrImage[] = []) {
         this.id = id;
         this.name = name;
         this.subscriptionId = subscriptionId;
@@ -101,7 +101,10 @@ export class Workspace {
     }
 
     static fromJSON(obj: any) {
-        let new_ws = new Workspace(obj.id, obj.name, obj.subscriptionId, obj.resourceGroup, obj.location, obj.containerRegistry);
+        let new_ws = new Workspace(obj.id, obj.name, obj.subscriptionId, obj.resourceGroup, obj.location);
+        if (obj.hasOwnProperty('containerRegistry')) {
+            new_ws.containerRegistry = ContainerRegistry.fromJSON(obj.containerRegistry);
+        }
         if (obj.hasOwnProperty('images')) {
             new_ws.images = obj.images.map((image: any) => Image.fromJSON(image));
         }
@@ -233,7 +236,11 @@ export async function getWorkspaces(configDir?: string) {
     );
     let workspaces: Workspace[] = [];
     for (let ws of response.data) {
-        workspaces.push(new Workspace(ws.id, ws.name, ws.subscriptionId, ws.resourceGroup, ws.location, ContainerRegistry.fromString(ws.properties.containerRegistry)));
+        workspaces.push(new Workspace(
+            ws.id, ws.name, ws.subscriptionId, ws.resourceGroup, ws.location,
+            ws.properties.hasOwnProperty('containerRegistry') ?
+                ContainerRegistry.fromString(ws.properties.containerRegistry) : undefined,
+        ))
     }
 
     // Get images
@@ -243,9 +250,18 @@ export async function getWorkspaces(configDir?: string) {
     }
 
     // Get acr images
-    let acrImages = await Promise.all(workspaces.map((ws) => getAcrImages(ws, configDir)));
-    for (let i = 0; i < acrImages.length; i++) {
-        workspaces[i].acrImages = acrImages[i];
+    let acrImagesResults = await Promise.allSettled(workspaces.map((ws) => getAcrImages(ws, configDir)));
+    for (let i = 0; i < acrImagesResults.length; i++) {
+        let result = acrImagesResults[i];
+        if (result.status === "fulfilled") {
+            workspaces[i].acrImages = result.value;
+        } else {
+            console.error(
+                `Error getting ACR images for workspace ${workspaces[i].name}:`,
+                result.reason
+            );
+            workspaces[i].acrImages = [];
+        }
     }
     
     console.log('msra_intern_s_toolkit.helper.azureml.getWorkspaces: Found ' + workspaces.length + ' workspaces');
@@ -339,6 +355,10 @@ export async function getImages(workspace: Workspace, configDir?: string) {
 
 
 export async function getAcrImages(workspace: Workspace, configDir?: string) {
+    if (!workspace.containerRegistry) {
+        console.log('msra_intern_s_toolkit.helper.azureml.getAcrImages: Workspace has no container registry');
+        return [];
+    }
     let env = process.env;
     if (configDir) {
         env['AZURE_CONFIG_DIR'] = configDir;
