@@ -32,14 +32,12 @@ export async function getUserAssignedIdentitiesForSubscription(subscriptionId: s
 export async function getUserAssignedIdentities(configDir?: string): Promise<UserAssignedIdentity[]> {
     let subscriptions = await account.getSubscriptions(true, configDir);
     let identities: UserAssignedIdentity[] = [];
-    let responses = await rest.batchRequest(subscriptions.map(subscription => {
-        return {
-            httpMethod: rest.RESTMethod.GET,
-            relativeUrl: `/subscriptions/${subscription.id}/providers/Microsoft.ManagedIdentity/userAssignedIdentities?api-version=2023-01-31`
-        };
-    }, configDir))
+    let responses = await rest.batchRequest(subscriptions.map(subscription => ({
+        httpMethod: rest.RESTMethod.GET,
+        relativeUrl: `/subscriptions/${subscription.id}/providers/Microsoft.ManagedIdentity/userAssignedIdentities?api-version=2023-01-31`,
+    })), configDir);
     for (let response of responses) {
-        identities = identities.concat(response.content.value.map((identity: any) => new UserAssignedIdentity(identity.id, identity.name, identity.subscriptionId)));
+        identities = identities.concat((response.content?.value ?? []).map((identity: any) => new UserAssignedIdentity(identity.id, identity.name, identity.subscriptionId)));
     }
     return identities;
 }

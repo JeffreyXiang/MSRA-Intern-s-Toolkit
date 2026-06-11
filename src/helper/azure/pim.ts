@@ -44,7 +44,7 @@ export async function getRoles(configDir?: string) {
     ];
     let responses = await rest.batchRequest(requests, configDir);
     let roles: Role[] = [];
-    for (let response of responses[0].content.value) {
+    for (let response of (responses[0].content?.value ?? [])) {
         let newRole = new Role(
             response.id,
             response.name,
@@ -56,7 +56,7 @@ export async function getRoles(configDir?: string) {
             response.properties.roleEligibilityScheduleId,
             response.properties.principalId,
         );
-        let roleAssignment = responses[1].content.value.find((roleAssignment: any) => roleAssignment.properties.linkedRoleEligibilityScheduleInstanceId === response.id);
+        let roleAssignment = (responses[1].content?.value ?? []).find((roleAssignment: any) => roleAssignment.properties.linkedRoleEligibilityScheduleInstanceId === response.id);
         if (roleAssignment) {
             newRole.assignmentName = roleAssignment.name;
             newRole.assignmentType = roleAssignment.properties.assignmentType;

@@ -58,7 +58,28 @@ export async function request(method: RESTMethod, uri: string, body?: any, heade
     }
 }
 
-export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUrl: string, content?: any}[], configDir?: string) {
+/**
+ * Batch request with internal fallback. Never throws and never surfaces UI itself —
+ * callers are responsible for inspecting per-item results and reporting them.
+ *
+ * Returns an array aligned 1:1 with `requests`, each item shaped like
+ * `{httpStatusCode, content, error?}` (the same shape Azure's /batch returns,
+ * with an extra `error` field on failures from the fallback path).
+ *
+ * - Normal path: posts to `/batch` and returns the resulting `responses` array.
+ *   Per-item non-2xx responses keep their original `httpStatusCode` and `content`,
+ *   so callers can detect failures by checking the status code.
+ * - If the whole `/batch` call fails (e.g., `no_response_received`, gateway error),
+ *   falls back to issuing each request individually via `Promise.allSettled`.
+ *   - On individual success: `{httpStatusCode: 200, content: <data>}`.
+ *   - On individual failure: `{httpStatusCode: 0, content: {value: []}, error}`,
+ *     keeping callers that read `content.value` safe (empty list).
+ * - Chunks of >20 are split per Azure batch limits; chunk-level failures fall
+ *   back independently.
+ *
+ * Errors are still recorded to `outputChannel` by the underlying `request()` call.
+ */
+export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUrl: string, content?: any, error?: any}[], configDir?: string) {
     if (requests.length > 20) { // Azure batch request limit, divide into multiple requests
         let requestsParts = [];
         while (requests.length) {
@@ -73,7 +94,7 @@ export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUr
         }
         return responses;
     }
-    else {
+    try {
         let responses = await request(
             RESTMethod.POST,
             '/batch?api-version=2020-06-01',
@@ -82,5 +103,23 @@ export async function batchRequest(requests: {httpMethod: RESTMethod, relativeUr
             configDir,
         );
         return responses.responses;
+    } catch (batchErr) {
+        // Whole /batch call failed. Fall back to issuing each request individually
+        // so a transient batch-endpoint failure doesn't drop all sub-requests' data.
+        // We do NOT surface UI errors here — callers inspect per-item results.
+        outputChannel.appendLine(`[REST] batchRequest: /batch endpoint failed; falling back to ${requests.length} individual request(s).`);
+        let settled = await Promise.allSettled(requests.map(req => request(
+            req.httpMethod,
+            req.relativeUrl,
+            req.content,
+            undefined,
+            configDir,
+        )));
+        return settled.map(r => {
+            if (r.status === 'fulfilled') {
+                return {httpStatusCode: 200, content: r.value};
+            }
+            return {httpStatusCode: 0, content: {value: []}, error: r.reason};
+        });
     }
 }

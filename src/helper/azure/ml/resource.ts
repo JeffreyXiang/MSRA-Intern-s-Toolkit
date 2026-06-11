@@ -1,8 +1,47 @@
 import * as cp from 'child_process'
+import * as vscode from 'vscode'
 import { outputChannel } from '../../../extension'
 import { BlobContainer } from '../storage';
 import * as rest from '../rest';
 import { parseJson } from '../utils';
+
+/**
+ * Centralized error logging helper. Logs to console + output channel.
+ * Errors are aggregated and surfaced via a single warning toast by `reportCollectedErrors`.
+ */
+function formatError(error: any): string {
+    if (error == null) return String(error);
+    if (error instanceof Error) return error.stack || error.message;
+    if (typeof error === 'string') return error;
+    // Azure REST errors are usually { error: { code, message } } or similar
+    if (typeof error === 'object') {
+        const inner = error.error ?? error;
+        const code = inner?.code ?? inner?.statusCode;
+        const message = inner?.message ?? inner?.Message;
+        if (message) return code ? `${code}: ${message}` : String(message);
+        try { return JSON.stringify(error); } catch { return String(error); }
+    }
+    return String(error);
+}
+
+function logResourceError(scope: string, error: any, collector?: string[]) {
+    const msg = formatError(error);
+    const line = `[${scope}] ${msg}`;
+    console.warn(`msra_intern_s_toolkit.helper.azureml: ${line}`, error);
+    try { outputChannel.appendLine(`[WARN] ${line}`); } catch {}
+    if (collector) collector.push(line);
+}
+
+function reportCollectedErrors(scope: string, errors: string[]) {
+    if (errors.length === 0) return;
+    const summary = `${scope}: ${errors.length} sub-request(s) failed. See output channel for details.`;
+    console.warn(`msra_intern_s_toolkit.helper.azureml.${scope}: ${errors.length} errors`, errors);
+    try {
+        outputChannel.appendLine(`[WARN] ${scope}: ${errors.length} sub-request(s) failed:`);
+        for (const e of errors) outputChannel.appendLine(`  - ${e}`);
+        vscode.window.showWarningMessage(summary);
+    } catch {}
+}
 
 export class InstanceType {
     name: string;
@@ -227,125 +266,173 @@ export class Datastore {
 }
 
 export async function getWorkspaces(configDir?: string) {
-    let response = await rest.request(
-        rest.RESTMethod.POST,
-        '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
-        {query: "resources | where type == 'microsoft.machinelearningservices/workspaces' | order by tolower(name) asc",},
-        undefined,
-        configDir,
-    );
+    const errors: string[] = [];
+    let response: any;
+    try {
+        response = await rest.request(
+            rest.RESTMethod.POST,
+            '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
+            {query: "resources | where type == 'microsoft.machinelearningservices/workspaces' | order by tolower(name) asc",},
+            undefined,
+            configDir,
+        );
+    } catch (err) {
+        logResourceError('getWorkspaces:list', err, errors);
+        reportCollectedErrors('getWorkspaces', errors);
+        return [];
+    }
     let workspaces: Workspace[] = [];
-    for (let ws of response.data) {
+    for (let ws of (response?.data ?? [])) {
+        let cr: ContainerRegistry | undefined = undefined;
+        if (ws.properties?.hasOwnProperty('containerRegistry')) {
+            try {
+                cr = ContainerRegistry.fromString(ws.properties.containerRegistry);
+            } catch (err) {
+                logResourceError(`getWorkspaces:parseContainerRegistry(${ws.name})`, err, errors);
+            }
+        }
         workspaces.push(new Workspace(
-            ws.id, ws.name, ws.subscriptionId, ws.resourceGroup, ws.location,
-            ws.properties.hasOwnProperty('containerRegistry') ?
-                ContainerRegistry.fromString(ws.properties.containerRegistry) : undefined,
+            ws.id, ws.name, ws.subscriptionId, ws.resourceGroup, ws.location, cr,
         ))
     }
 
-    // Get images
-    let images = await Promise.all(workspaces.map((ws) => getImages(ws, configDir)));
-    for (let i = 0; i < images.length; i++) {
-        workspaces[i].images = images[i];
+    // Get images (per-workspace, fault-tolerant)
+    let imagesResults = await Promise.allSettled(workspaces.map((ws) => getImages(ws, configDir)));
+    for (let i = 0; i < imagesResults.length; i++) {
+        let result = imagesResults[i];
+        if (result.status === "fulfilled") {
+            workspaces[i].images = result.value;
+        } else {
+            logResourceError(`getWorkspaces:getImages(${workspaces[i].name})`, result.reason, errors);
+            workspaces[i].images = [];
+        }
     }
 
-    // Get acr images
+    // Get acr images (per-workspace, fault-tolerant)
     let acrImagesResults = await Promise.allSettled(workspaces.map((ws) => getAcrImages(ws, configDir)));
     for (let i = 0; i < acrImagesResults.length; i++) {
         let result = acrImagesResults[i];
         if (result.status === "fulfilled") {
             workspaces[i].acrImages = result.value;
         } else {
-            console.error(
-                `Error getting ACR images for workspace ${workspaces[i].name}:`,
-                result.reason
-            );
+            logResourceError(`getWorkspaces:getAcrImages(${workspaces[i].name})`, result.reason, errors);
             workspaces[i].acrImages = [];
         }
     }
     
     console.log('msra_intern_s_toolkit.helper.azureml.getWorkspaces: Found ' + workspaces.length + ' workspaces');
     console.log(workspaces);
+    reportCollectedErrors('getWorkspaces', errors);
     return workspaces;
 }
 
 export async function getVirtualClusters(configDir?: string) {
+    const errors: string[] = [];
     // Get virtual clusters
-    let response = await rest.request(
-        rest.RESTMethod.POST,
-        '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
-        {query: "resources | where type == 'microsoft.machinelearningservices/virtualclusters' | order by tolower(name) asc",},
-        undefined,
-        configDir,
-    );
+    let response: any;
+    try {
+        response = await rest.request(
+            rest.RESTMethod.POST,
+            '/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01',
+            {query: "resources | where type == 'microsoft.machinelearningservices/virtualclusters' | order by tolower(name) asc",},
+            undefined,
+            configDir,
+        );
+    } catch (err) {
+        logResourceError('getVirtualClusters:list', err, errors);
+        reportCollectedErrors('getVirtualClusters', errors);
+        return [];
+    }
     let virtualClusters: VirtualCluster[] = [];
-    for (let vc of response.data) {
-        let newVC = new VirtualCluster(vc.id, vc.subscriptionId, vc.resourceGroup, vc.name, vc.location, vc.properties.managed.locations);
-        let instanceSeriesMap = new Map<string, InstanceSeries>();
-        for (let limit of vc.properties.managed.defaultGroupPolicyOverallQuotas.limits) {
-            if (!instanceSeriesMap.has(limit.id)) {
-                instanceSeriesMap.set(limit.id, new InstanceSeries(limit.id, limit.name));
-            }
-            let series = instanceSeriesMap.get(limit.id)!;
-            series.limit = {limit: limit.limit, used: limit.used};
-        }
-        for (let location of Object.keys(vc.properties.managed.quotas)) {
-            let quota = vc.properties.managed.quotas[location as keyof typeof vc.properties.managed.quotas];
-            for (let limit of quota.limits) {
+    for (let vc of (response?.data ?? [])) {
+        try {
+            let newVC = new VirtualCluster(vc.id, vc.subscriptionId, vc.resourceGroup, vc.name, vc.location, vc.properties.managed.locations);
+            let instanceSeriesMap = new Map<string, InstanceSeries>();
+            for (let limit of vc.properties.managed.defaultGroupPolicyOverallQuotas.limits) {
                 if (!instanceSeriesMap.has(limit.id)) {
                     instanceSeriesMap.set(limit.id, new InstanceSeries(limit.id, limit.name));
                 }
                 let series = instanceSeriesMap.get(limit.id)!;
-                series.quota[limit.slaTier as keyof Quota].limit += limit.limit;
-                series.quota[limit.slaTier as keyof Quota].used += limit.used;
+                series.limit = {limit: limit.limit, used: limit.used};
             }
+            for (let location of Object.keys(vc.properties.managed.quotas)) {
+                let quota = vc.properties.managed.quotas[location as keyof typeof vc.properties.managed.quotas];
+                for (let limit of quota.limits) {
+                    if (!instanceSeriesMap.has(limit.id)) {
+                        instanceSeriesMap.set(limit.id, new InstanceSeries(limit.id, limit.name));
+                    }
+                    let series = instanceSeriesMap.get(limit.id)!;
+                    series.quota[limit.slaTier as keyof Quota].limit += limit.limit;
+                    series.quota[limit.slaTier as keyof Quota].used += limit.used;
+                }
+            }
+            newVC.instanceSeries = Array.from(instanceSeriesMap.values());
+            virtualClusters.push(newVC);
+        } catch (err) {
+            logResourceError(`getVirtualClusters:parse(${vc?.name})`, err, errors);
         }
-        newVC.instanceSeries = Array.from(instanceSeriesMap.values());
-        virtualClusters.push(newVC);
     }
 
     if (virtualClusters.length == 0) {
         console.log('msra_intern_s_toolkit.helper.azureml.getVirtualClusters: No virtual clusters found');
+        reportCollectedErrors('getVirtualClusters', errors);
         return [];
     }
 
-    // Get instance types
-    let requests = [];
-    for (let vc of virtualClusters) {
-        requests.push({
-            httpMethod: rest.RESTMethod.GET,
-            relativeUrl: `/subscriptions/${vc.subscriptionId}/providers/Microsoft.MachineLearningServices/locations/${vc.location}/instancetypeseries?api-version=2021-03-01-preview`
-        });
-    }
-    let responses = await rest.batchRequest(requests);
+    // Get instance types. batchRequest internally falls back to per-request retries
+    // if the /batch endpoint itself fails, and missing items show up as empty content.
+    let requests = virtualClusters.map((vc) => ({
+        httpMethod: rest.RESTMethod.GET,
+        relativeUrl: `/subscriptions/${vc.subscriptionId}/providers/Microsoft.MachineLearningServices/locations/${vc.location}/instancetypeseries?api-version=2021-03-01-preview`
+    }));
+    let responses = await rest.batchRequest(requests, configDir);
     for (let i = 0; i < responses.length; i++) {
-        response = responses[i].content;
         let vc = virtualClusters[i];
-        for (let instanceType of response.value) {
-            let series = vc.instanceSeries.find((series) => series.id == instanceType.instanceTypeSeriesId);
-            if (series) {
-                series.instanceTypes.push(
-                    new InstanceType(instanceType.name.replace('Singularity.', ''), instanceType.description, instanceType.numberOfCores, instanceType.numberOfGPUs)
-                );
+        let item = responses[i];
+        let status = item?.httpStatusCode;
+        if (status !== undefined && status !== 0 && (status < 200 || status >= 300)) {
+            logResourceError(
+                `getVirtualClusters:instanceTypes(${vc.name}, sub=${vc.subscriptionId}, loc=${vc.location})`,
+                item?.content ?? `HTTP ${status}`, errors,
+            );
+            continue;
+        }
+        try {
+            for (let instanceType of (item?.content?.value ?? [])) {
+                let series = vc.instanceSeries.find((series) => series.id == instanceType.instanceTypeSeriesId);
+                if (series) {
+                    series.instanceTypes.push(
+                        new InstanceType(instanceType.name.replace('Singularity.', ''), instanceType.description, instanceType.numberOfCores, instanceType.numberOfGPUs)
+                    );
+                }
             }
+        } catch (err) {
+            logResourceError(`getVirtualClusters:parseInstanceTypes(${vc.name})`, err, errors);
         }
     }
 
     console.log('msra_intern_s_toolkit.helper.azureml.getVirtualClusters: Found ' + virtualClusters.length + ' virtual clusters');
     console.log(virtualClusters);
+    reportCollectedErrors('getVirtualClusters', errors);
     return virtualClusters;
 }
 
 export async function getImages(workspace: Workspace, configDir?: string) {
-    let response = await rest.request(
-        rest.RESTMethod.GET,
-        `https://ml.azure.com/api/${workspace.location}/virtualcluster/rp/subscriptions/${workspace.subscriptionId}/managedComputeImages?api-version=2021-03-01-preview`,
-        undefined,
-        undefined,
-        configDir,
-    );
+    let response: any;
+    try {
+        response = await rest.request(
+            rest.RESTMethod.GET,
+            `https://ml.azure.com/api/${workspace.location}/virtualcluster/rp/subscriptions/${workspace.subscriptionId}/managedComputeImages?api-version=2021-03-01-preview`,
+            undefined,
+            undefined,
+            configDir,
+        );
+    } catch (err) {
+        logResourceError(`getImages(${workspace.name})`, err);
+        return [];
+    }
     let images: Image[] = [];
-    for (let key of Object.keys(response)) {
+    for (let key of Object.keys(response ?? {})) {
         images.push(new Image(key, response[key]));
     }
     console.log('msra_intern_s_toolkit.helper.azureml.getImages: Found ' + images.length + ' images');
@@ -364,10 +451,16 @@ export async function getAcrImages(workspace: Workspace, configDir?: string) {
         env['AZURE_CONFIG_DIR'] = configDir;
     }
     let cr = workspace.containerRegistry;
-    outputChannel.appendLine(`[CMD] > az acr repository list --name ${cr.name} --subscription ${cr.subscriptionId}`);
-    let response = cp.execSync(`az acr repository list --name ${cr.name} --subscription ${cr.subscriptionId}`, {env: env}).toString();
-    let repositories = parseJson(response);
-    let tags = await Promise.all(repositories.map(async (repository: any) => {
+    let repositories: any[];
+    try {
+        outputChannel.appendLine(`[CMD] > az acr repository list --name ${cr.name} --subscription ${cr.subscriptionId}`);
+        let response = cp.execSync(`az acr repository list --name ${cr.name} --subscription ${cr.subscriptionId}`, {env: env}).toString();
+        repositories = parseJson(response);
+    } catch (err) {
+        logResourceError(`getAcrImages:listRepos(${cr.name})`, err);
+        return [];
+    }
+    let tagsResults = await Promise.allSettled(repositories.map(async (repository: any) => {
         outputChannel.appendLine(`[CMD] > az acr repository show-tags --name ${cr.name} --repository ${repository} --subscription ${cr.subscriptionId}`);
         let response = cp.execSync(`az acr repository show-tags --name ${cr.name} --repository ${repository} --subscription ${cr.subscriptionId}`, {env: env}).toString();
         return parseJson(response);
@@ -375,8 +468,13 @@ export async function getAcrImages(workspace: Workspace, configDir?: string) {
     let acrImages: AcrImage[] = [];
     let loginServer = `${cr.name}.azurecr.io`;
     for (let i = 0; i < repositories.length; i++) {
-        for (let tag of tags[i]) {
-            acrImages.push(new AcrImage(loginServer, repositories[i], tag));
+        let result = tagsResults[i];
+        if (result.status === "fulfilled") {
+            for (let tag of result.value) {
+                acrImages.push(new AcrImage(loginServer, repositories[i], tag));
+            }
+        } else {
+            logResourceError(`getAcrImages:showTags(${cr.name}/${repositories[i]})`, result.reason);
         }
     }
     console.log('msra_intern_s_toolkit.helper.azureml.getAcrImages: Found ' + acrImages.length + ' acr images');
